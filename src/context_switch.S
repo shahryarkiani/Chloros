@@ -9,12 +9,28 @@
  * This function has the following signature in C:
  * grn_context_switch(grn_context *old_context, grn_context *new_context)
  *
- * @param old_context pointer to where to save the current context
- * @param new_context pointer to the context to restore
+ * @param old_context pointer to where to save the current context(in %rdi)
+ * @param new_context pointer to the context to restore(in %rsi)
  */
 .globl grn_context_switch
 grn_context_switch:
-  // FIXME: Save the old context, restore the new.
+  //Save current context
+  mov	  %rsp, (%rdi)
+  mov	  %r15, 8(%rdi)
+  mov	  %r14, 16(%rdi)
+  mov	  %r13, 24(%rdi)
+  mov	  %r12, 32(%rdi)
+  mov	  %rbx, 40(%rdi)
+  mov	  %rbp, 48(%rdi)
+  //Load new context
+  mov     (%rsi), %rsp
+  mov  	  8(%rsi), %r15
+  mov  	  16(%rsi), %r14
+  mov  	  24(%rsi), %r13
+  mov 	  32(%rsi), %r12
+  mov	  40(%rsi), %rbx
+  mov	  48(%rsi), %rbp
+  ret
 
 /**
  * Initial function implicitly executed by a thread.
