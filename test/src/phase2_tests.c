@@ -24,8 +24,9 @@ static bool context_switch_test() {
   asm("sub $8, %%rsp\n\t"
       "mov %%rsp, %0\n\t"
       "mov %%rbp, %1\n\t"
+      "mov %%r12, %2\n\t"
       "add $8, %%rsp"
-      : "=m" (b_context.rsp), "=m" (b_context.rbp)
+      : "=m" (b_context.rsp), "=m" (b_context.rbp), "=m" (b_context.r12)
       : :);
 
   grn_context_switch(&a_context, &b_context);
@@ -45,8 +46,7 @@ static bool context_switch_test() {
   check_eq(r15, b_context.r15);
   check_eq(rsp, b_context.rsp + 8);
 
-  asm("add $1, %%r12\n\t"
-      "add $2, %%r14\n\t"
+  asm("add $2, %%r14\n\t"
       "mov %%r12, %%r13\n\t"
       "mov %%r14, %%r15"
       : : : "r13", "r15");
