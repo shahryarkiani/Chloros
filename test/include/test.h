@@ -18,9 +18,9 @@
  * These are set to the color escape sequence if we're printing out to a
  * terminal. Otherwise, they're set to the empty string.
  */
-const char *KNRM;
-const char *KRED;
-const char *KGRN;
+extern const char *KNRM;
+extern const char *KRED;
+extern const char *KGRN;
 
 /*
  * The color escape sequences for terminals.

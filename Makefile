@@ -26,9 +26,6 @@ LIB_NAME = chloros
 LIB = $(LIB_DIR)/lib$(LIB_NAME).a
 TEST_BIN = $(BIN_DIR)/test
 
-SUBMIT_TAR = lab1.tar.gz
-SUBMISSION_SITE = "https://web.stanford.edu/class/cs240/labs/submission/"
-
 .PHONY: all clean test submission
 
 vpath % $(SRC_DIR) $(TEST_DIR)
@@ -49,17 +46,11 @@ $(TEST_BIN): $(TEST_OBJS) $(LIB)
 	@mkdir -p $(@D)
 	$(CC) $(LDFLAGS) -L$(LIB_DIR) -lchloros -o $@ $^
 
-$(SUBMIT_TAR): $(LIB)
-	tar -zcf $@ $(LIB_DIR)
-
 all: $(LIB)
 
 test: $(TEST_BIN)
 	@$(TEST_BIN)
 
-submission: $(SUBMIT_TAR)
-	@echo "Your submission file "$^" was successfully created."
-	@echo "Submit it at $(SUBMISSION_SITE)."
 
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR) $(LIB_DIR) $(SUBMIT_TAR)
+	rm -rf $(OBJ_DIR) $(BIN_DIR) $(LIB_DIR)

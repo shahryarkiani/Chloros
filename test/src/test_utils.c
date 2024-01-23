@@ -20,6 +20,12 @@
 
 static bool did_timeout = false;
 
+//Define the extern variables for KNRM, KGRN, and KRED
+const char *KNRM;
+const char *KRED;
+const char *KGRN;
+
+
 /**
  * Sets up the testing world for the _main_test_function and calls the
  * _main_test_function.

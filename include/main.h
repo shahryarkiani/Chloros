@@ -19,7 +19,7 @@ typedef struct chloros_state_struct {
   grn_thread *current;
 } chloros_state;
 
-chloros_state STATE;
+extern chloros_state STATE;
 
 void grn_gc();
 
