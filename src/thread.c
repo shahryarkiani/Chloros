@@ -92,10 +92,19 @@ grn_thread *next_thread(grn_thread *thread) {
  * @return a pointer to the newly allocated grn_thread structure
  */
 grn_thread *grn_new_thread(bool alloc_stack) {
-  UNUSED(alloc_stack);
+  
+  grn_thread *new_thread = calloc(sizeof(grn_thread), 1);
 
-  // FIXME: Allocate a new thread and stack.
-  return NULL;
+  new_thread->id = atomic_next_id();
+
+  if(alloc_stack) {
+    int allocated = posix_memalign((void**)&new_thread->stack, 16, STACK_SIZE);
+    assert(allocated == 0);
+  }
+
+  add_thread(new_thread);
+  
+  return new_thread;
 }
 
 /**
@@ -105,9 +114,14 @@ grn_thread *grn_new_thread(bool alloc_stack) {
  * @param thread the thread to deallocate and remove from linked list
  */
 void grn_destroy_thread(grn_thread *thread) {
-  UNUSED(thread);
+  remove_thread(thread);
 
-  // FIXME: Free the resources used by `thread`.
+  if(thread->stack != NULL) {
+    free(thread->stack);
+  }
+
+  free(thread);
+
 }
 
 /**
