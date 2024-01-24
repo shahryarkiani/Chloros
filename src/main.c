@@ -83,7 +83,33 @@ void grn_gc() {
  */
 int grn_yield() {
   // FIXME: Yield the current thread's execution time to another READY thread.
-  return -1;
+
+  grn_thread *prev = STATE.current;
+  
+  //We start our search for the next thread to run at the next thread pointed to by our current thread in the linked list
+  grn_thread *next = next_thread(prev);
+
+  //We loop until we find a ready thread, or until we've searched through all the threads and looped back to the original one
+  while(next->status != READY && next != prev) {
+    next = next_thread(next);
+  }
+
+  //If we got back to the original thread, that means we couldn't find anything else to schedule, so we return -1 to indicate that no yielding happened
+  if(next == prev)
+    return -1;
+
+  //Else, we swap out the current thread for the new one
+  STATE.current = next;
+
+  //Update statuses
+  next->status = RUNNING;
+  //We only set the prev thread to READY if it was running before, which tells us that it didn't yield because it's work was complete
+  if(prev->status == RUNNING)
+    prev->status = READY;
+
+  grn_context_switch(&prev->context, &next->context);
+  
+  return 0;
 }
 
 /**
