@@ -79,7 +79,22 @@ int grn_spawn(grn_fn fn) {
  * Frees the resources for all threads marked ZOMBIE.
  */
 void grn_gc() {
-  // FIXME: Free the memory of zombied threads.
+
+  //We don't gc the current thread, since we will context switch from it
+  grn_thread* iter_thread = next_thread(grn_current());
+  
+  while(iter_thread != grn_current()) {
+    if(iter_thread->status == ZOMBIE) {
+      grn_thread* next_iter_thread = next_thread(iter_thread);
+      
+      grn_destroy_thread(iter_thread);
+
+      iter_thread = next_iter_thread;
+    } else {
+      iter_thread = next_thread(iter_thread);
+    }
+  }
+
 }
 
 /**
@@ -96,6 +111,8 @@ void grn_gc() {
 int grn_yield() {
   // FIXME: Yield the current thread's execution time to another READY thread.
 
+  grn_gc();
+  
   grn_thread *prev = STATE.current;
   
   //We start our search for the next thread to run at the next thread pointed to by our current thread in the linked list
@@ -120,6 +137,8 @@ int grn_yield() {
     prev->status = READY;
 
   grn_context_switch(&prev->context, &next->context);
+
+  
   
   return 0;
 }
