@@ -177,5 +177,6 @@ void phase3_tests(bool *result, int *_num_tests, int *_num_passed);
 void phase4_tests(bool *result, int *_num_tests, int *_num_passed);
 void phase5_tests(bool *result, int *_num_tests, int *_num_passed);
 void phase6_tests(bool *result, int *_num_tests, int *_num_passed);
+void argument_tests(bool *result, int *_num_tests, int *_num_passed);
 
 #endif

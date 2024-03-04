@@ -28,8 +28,8 @@ static bool ping_pong_test() {
   finished = false;
 
   grn_init(true);
-  grn_spawn(ping_pong);
-  grn_spawn(ping_pong);
+  grn_spawn(ping_pong, NULL);
+  grn_spawn(ping_pong, NULL);
   grn_wait();
 
   check_eq(finished, true);

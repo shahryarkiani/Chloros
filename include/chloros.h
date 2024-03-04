@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <signal.h>
 
 #if defined(__amd64__) || defined(__amd64) || defined(__x64_64__) \
     || defined(__x64_64) || defined(_M_AMD64) || defined(_M_X64)
@@ -44,13 +45,10 @@ typedef struct grn_thread_struct {
 /*
  * The type of a function that can be the initial function of a green thread.
  */
-typedef int (*grn_fn)();
-
-// TODO: Allow a void * context
-// typedef int (*grn_fn)(void *);
+typedef int (*grn_fn)(void *);
 
 void grn_init(bool);
-int grn_spawn(grn_fn);
+int grn_spawn(grn_fn, void *);
 int grn_yield();
 int grn_wait();
 grn_thread *grn_current();

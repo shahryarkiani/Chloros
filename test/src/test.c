@@ -46,4 +46,7 @@ BEGIN_TESTING {
 
   // TODO: Uncomment this to test the extra credit phase.
   run_suite(phase6_tests);
+
+  //Additional tests for my features
+  run_suite(argument_tests);
 }

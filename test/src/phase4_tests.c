@@ -62,8 +62,8 @@ static bool test_yield_iter() {
   check(in_fd >= 0);
 
   grn_init(false);
-  grn_spawn(yield_loop);
-  grn_spawn(yield_loop);
+  grn_spawn(yield_loop, NULL);
+  grn_spawn(yield_loop, NULL);
   grn_wait();
 
   // Add this so that getline doesn't block when nothing was printed, i.e., when
@@ -130,7 +130,7 @@ static bool worker_threads() {
 
   // Spawn ITER_NUM worker threads
   for (int i = 0; i < ITER_NUM; ++i) {
-    grn_spawn(do_work);
+    grn_spawn(do_work, NULL);
   }
 
   // Wait for them all to finish

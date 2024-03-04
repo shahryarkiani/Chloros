@@ -103,18 +103,19 @@ void grn_init(bool preempt) {
  *
  * @return The thread ID of the newly spawned process.
  */
-int grn_spawn(grn_fn fn) {
+int grn_spawn(grn_fn fn, void *arg) {
   sigprocmask(SIG_BLOCK, &timer_sig, NULL);
   grn_thread *new_thread = grn_new_thread(true);
-
   //When the context switch enters this thread and returns, we should be in start_thread
   //and start_thread should have the function we want to run on the top of the stack
   int stack_sizeq = (STACK_SIZE) / 8;
   uint64_t *stackq = (uint64_t *) new_thread->stack;
 
-  stackq[stack_sizeq - 2] = (uint64_t) start_thread;
+  
+  stackq[stack_sizeq - 4] = (uint64_t) start_thread;
+  stackq[stack_sizeq - 2] = (uint64_t) arg;
   stackq[stack_sizeq - 1] = (uint64_t) fn;
-  new_thread->context.rsp = (uint64_t) &stackq[stack_sizeq - 2];
+  new_thread->context.rsp = (uint64_t) &stackq[stack_sizeq - 4];
 
   new_thread->status = READY;
 

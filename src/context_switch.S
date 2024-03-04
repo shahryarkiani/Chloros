@@ -58,9 +58,9 @@ unblock_timer:
 .globl start_thread
 start_thread:
   callq	  unblock_timer
-  push    %rbp
-  mov     %rsp, %rbp
-  mov     0x8(%rbp), %r11
+  add	  $0x8, %rsp 
+  mov	  (%rsp), %rdi
+  mov     0x8(%rsp), %r11
   callq   *%r11
   callq   _grn_exit
 loop:
