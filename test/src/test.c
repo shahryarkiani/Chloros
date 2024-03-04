@@ -45,5 +45,5 @@ BEGIN_TESTING {
   run_suite(phase5_tests);
 
   // TODO: Uncomment this to test the extra credit phase.
-  // run_suite(phase6_tests);
+  run_suite(phase6_tests);
 }

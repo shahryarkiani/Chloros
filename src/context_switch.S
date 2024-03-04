@@ -33,6 +33,18 @@ grn_context_switch:
   ret
 
 /**
+ * This needs to be called the first time a thread executes(below in start_thread)
+ * It unblocks the SIGALRM signal so the thread can be interrupted and the scheduler can switch
+ * the current thread. After the first time, the unblocking will be handled when returning from grn_yield()
+*/
+unblock_timer:
+  callq	  get_sigset
+  mov	  %rax, %rsi
+  mov	  $1, %rdi	
+  mov	  $0, %rdx
+  callq   sigprocmask@PLT	
+  ret	
+/**
  * Initial function implicitly executed by a thread.
  *
  * This function should be jumped into implicitly by the green threads library.
@@ -45,6 +57,7 @@ grn_context_switch:
  */
 .globl start_thread
 start_thread:
+  callq	  unblock_timer
   push    %rbp
   mov     %rsp, %rbp
   mov     0x8(%rbp), %r11

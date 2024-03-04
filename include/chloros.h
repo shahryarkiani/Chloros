@@ -55,6 +55,7 @@ int grn_yield();
 int grn_wait();
 grn_thread *grn_current();
 void grn_exit();
+sigset_t *get_sigset();
 
 // 1 << 20 == 1MB * 2 == 2MB
 static const uint64_t STACK_SIZE = (1 << 20) * 2;

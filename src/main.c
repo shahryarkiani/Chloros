@@ -15,6 +15,8 @@
 #include "thread.h"
 #include "utils.h"
 
+#define INTERVAL 25000
+
 /*
  * Initial global state.
  */
@@ -22,6 +24,52 @@ chloros_state STATE = {
   .threads = NULL,
   .current = NULL
 };
+
+sigset_t timer_sig;
+
+/**
+ * Signal Handler for timer interrupts
+ *
+ * Simply calls grn_yield() to schedule another thread.
+ */
+void grn_handle_interrupt(int signum) {
+  UNUSED(signum);
+  grn_yield();
+}
+
+/**
+ * Sets up timed interrupts to enable preemption
+ *
+ * This function will be called only once by grn_init if the user wants preemption.
+ * We also need to wrap non reentrant functions(such as malloc/free) with sigprocmasks 
+ * to ensure that they don't get interrupted.
+ */
+void grn_interrupt_init() {
+  //Configure the signal set we want to listen for
+  sigemptyset(&timer_sig);
+  sigaddset(&timer_sig, SIGALRM);
+
+  //Configure the timer
+  struct itimerval itimer;
+  itimer.it_interval.tv_sec = 0;
+  itimer.it_interval.tv_usec = INTERVAL;
+  itimer.it_value.tv_sec = 0;
+  itimer.it_value.tv_usec = INTERVAL;
+
+  //Configure action handling
+  struct sigaction timeout_action;
+  timeout_action.sa_handler = grn_handle_interrupt;
+  timeout_action.sa_mask = timer_sig;
+  timeout_action.sa_flags = 0;
+
+  if(sigaction(SIGALRM, &timeout_action, NULL) != 0) {
+    err_exit("sigaction failed: %s\n", strerror(errno));
+  }
+  if(setitimer(ITIMER_REAL, &itimer, NULL) != 0) {
+    err_exit("setitimer failed: %s\n", strerror(errno));
+  }
+  
+}
 
 /**
  * Initializes the choloros green thread library.
@@ -38,7 +86,8 @@ void grn_init(bool preempt) {
   STATE.current->status = RUNNING;
 
   if (preempt) {
-    // FIXME: The user has requested preemption. Enable the functionality.
+    //The user has requested preemption. Enable the functionality.
+    grn_interrupt_init();
   }
 }
 
@@ -55,22 +104,23 @@ void grn_init(bool preempt) {
  * @return The thread ID of the newly spawned process.
  */
 int grn_spawn(grn_fn fn) {
-   grn_thread *new_thread = grn_new_thread(true);
+  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  grn_thread *new_thread = grn_new_thread(true);
 
-   //When the context switch enters this thread and returns, we should be in start_thread
-   //and start_thread should have the function we want to run on the top of the stack
-   int stack_sizeq = (STACK_SIZE) / 8;
-   uint64_t *stackq = (uint64_t *) new_thread->stack;
+  //When the context switch enters this thread and returns, we should be in start_thread
+  //and start_thread should have the function we want to run on the top of the stack
+  int stack_sizeq = (STACK_SIZE) / 8;
+  uint64_t *stackq = (uint64_t *) new_thread->stack;
 
-   stackq[stack_sizeq - 2] = (uint64_t) start_thread;
-   stackq[stack_sizeq - 1] = (uint64_t) fn;
-   new_thread->context.rsp = (uint64_t) &stackq[stack_sizeq - 2];
+  stackq[stack_sizeq - 2] = (uint64_t) start_thread;
+  stackq[stack_sizeq - 1] = (uint64_t) fn;
+  new_thread->context.rsp = (uint64_t) &stackq[stack_sizeq - 2];
 
-   new_thread->status = READY;
+  new_thread->status = READY;
 
-   grn_yield();
-
-   return new_thread->id;
+  grn_yield();
+  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+  return new_thread->id;
 }
 
 /**
@@ -109,8 +159,10 @@ void grn_gc() {
  * @return 0 if execution was yielded, -1 if no yielding occured
  */
 int grn_yield() {
-  // FIXME: Yield the current thread's execution time to another READY thread.
 
+  //We don't want to be interrupted when we're scheduling the next thread
+  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  
   grn_gc();
   
   grn_thread *prev = STATE.current;
@@ -124,8 +176,10 @@ int grn_yield() {
   }
 
   //If we got back to the original thread, that means we couldn't find anything else to schedule, so we return -1 to indicate that no yielding happened
-  if(next == prev)
+  if(next == prev) {
+    sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
     return -1;
+  }
 
   //Else, we swap out the current thread for the new one
   STATE.current = next;
@@ -138,8 +192,7 @@ int grn_yield() {
 
   grn_context_switch(&prev->context, &next->context);
 
-  
-  
+  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);  
   return 0;
 }
 
@@ -167,6 +220,7 @@ int grn_wait() {
  * rescheduled and is eventually garbage collected. This function never returns.
  */
 void grn_exit() {
+  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
   debug("Thread %" PRId64 " is exiting.\n", STATE.current->id);
   if (STATE.current->id == 0) {
     exit(0);
@@ -180,6 +234,14 @@ void grn_exit() {
  * For compatbility across name manglers.
  */
 void _grn_exit() { grn_exit(); }
+
+sigset_t *get_sigset() {
+  return &timer_sig;
+}
+
+sigset_t *_get_sigset() {
+  return get_sigset();
+}
 
 /**
  * Returns a pointer to the current thread if there is one. This pointer is only
