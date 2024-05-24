@@ -1,13 +1,13 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
-#include <unistd.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
+#include "chloros.h"
 #include "test.h"
 #include "thread.h"
-#include "chloros.h"
 
 static grn_context a_context;
 static grn_context b_context;
@@ -25,9 +25,11 @@ static bool context_switch_test() {
       "mov %%rsp, %0\n\t"
       "mov %%rbp, %1\n\t"
       "mov %%r12, %2\n\t"
+      "mov %%rbx, %3\n\t"
       "add $8, %%rsp"
-      : "=m" (b_context.rsp), "=m" (b_context.rbp), "=m" (b_context.r12)
-      : :);
+      : "=m"(b_context.rsp), "=m"(b_context.rbp), "=m"(b_context.r12), "=m"(b_context.rbx)
+      :
+      :);
 
   grn_context_switch(&a_context, &b_context);
 
@@ -36,8 +38,9 @@ static bool context_switch_test() {
       "mov %%r14, %2\n\t"
       "mov %%r15, %3\n\t"
       "mov %%rsp, %4\n\t"
-      : "=m" (r12), "=m" (r13), "=m" (r14), "=m" (r15), "=m" (rsp)
-      : :);
+      : "=m"(r12), "=m"(r13), "=m"(r14), "=m"(r15), "=m"(rsp)
+      :
+      :);
 
   // check restoration
   check_eq(r12, b_context.r12);
@@ -49,7 +52,9 @@ static bool context_switch_test() {
   asm("add $2, %%r14\n\t"
       "mov %%r12, %%r13\n\t"
       "mov %%r14, %%r15"
-      : : : "r13", "r15");
+      :
+      :
+      : "r13", "r15");
 
   // check remainder of saving
   grn_context_switch(&b_context, &a_context);
