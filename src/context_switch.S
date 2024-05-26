@@ -24,9 +24,9 @@ grn_context_switch:
   mov	  %rbp, 48(%rdi)
   //Load new context
   mov     (%rsi), %rsp
-  mov  	  8(%rsi), %r15
-  mov  	  16(%rsi), %r14
-  mov  	  24(%rsi), %r13
+  mov     8(%rsi), %r15
+  mov     16(%rsi), %r14
+  mov     24(%rsi), %r13
   mov 	  32(%rsi), %r12
   mov	  40(%rsi), %rbx
   mov	  48(%rsi), %rbp
@@ -38,12 +38,12 @@ grn_context_switch:
  * the current thread. After the first time, the unblocking will be handled when returning from grn_yield()
 */
 unblock_timer:
-  callq	  get_sigset
+  callq   get_sigset
   mov	  %rax, %rsi
-  mov	  $1, %rdi	
+  mov	  $1, %rdi
   mov	  $0, %rdx
-  callq   sigprocmask@PLT	
-  ret	
+  callq   sigprocmask@PLT
+  ret
 /**
  * Initial function implicitly executed by a thread.
  *
@@ -57,11 +57,12 @@ unblock_timer:
  */
 .globl start_thread
 start_thread:
-  callq	  unblock_timer
+  callq   unblock_timer
   add	  $0x8, %rsp 
   mov	  (%rsp), %rdi
   mov     0x8(%rsp), %r11
   callq   *%r11
+  mov     %rax, %rdi
   callq   _grn_exit
 loop:
   jmp     loop

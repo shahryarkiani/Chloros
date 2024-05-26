@@ -1,27 +1,28 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
-#include <unistd.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-#include "test.h"
 #include "chloros.h"
+#include "test.h"
 
 static const int ITER_NUM = 5;
 static volatile uint64_t last_thread = 0;
 static volatile bool finished = false;
 
-static int ping_pong() {
+static void *ping_pong() {
   uint64_t my_id = grn_current()->id;
   last_thread = my_id;
 
   for (int i = 0; i < ITER_NUM; i++) {
-    while (my_id == last_thread);
+    while (my_id == last_thread)
+      ;
     last_thread = my_id;
   }
 
   finished = true;
-  return 0;
+  return (void *)0;
 }
 
 static bool ping_pong_test() {

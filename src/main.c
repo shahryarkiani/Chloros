@@ -2,15 +2,14 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 
 #include "chloros.h"
-#include "utils.h"
 #include "main.h"
 #include "thread.h"
 #include "utils.h"
@@ -21,9 +20,8 @@
  * Initial global state.
  */
 chloros_state STATE = {
-  .threads = NULL,
-  .current = NULL
-};
+    .threads = NULL,
+    .current = NULL};
 
 sigset_t timer_sig;
 
@@ -41,34 +39,33 @@ void grn_handle_interrupt(int signum) {
  * Sets up timed interrupts to enable preemption
  *
  * This function will be called only once by grn_init if the user wants preemption.
- * We also need to wrap non reentrant functions(such as malloc/free) with sigprocmasks 
+ * We also need to wrap non reentrant functions(such as malloc/free) with sigprocmasks
  * to ensure that they don't get interrupted.
  */
 void grn_interrupt_init() {
-  //Configure the signal set we want to listen for
+  // Configure the signal set we want to listen for
   sigemptyset(&timer_sig);
   sigaddset(&timer_sig, SIGALRM);
 
-  //Configure the timer
+  // Configure the timer
   struct itimerval itimer;
   itimer.it_interval.tv_sec = 0;
   itimer.it_interval.tv_usec = INTERVAL;
   itimer.it_value.tv_sec = 0;
   itimer.it_value.tv_usec = INTERVAL;
 
-  //Configure action handling
+  // Configure action handling
   struct sigaction timeout_action;
   timeout_action.sa_handler = grn_handle_interrupt;
   timeout_action.sa_mask = timer_sig;
   timeout_action.sa_flags = 0;
 
-  if(sigaction(SIGALRM, &timeout_action, NULL) != 0) {
+  if (sigaction(SIGALRM, &timeout_action, NULL) != 0) {
     err_exit("sigaction failed: %s\n", strerror(errno));
   }
-  if(setitimer(ITIMER_REAL, &itimer, NULL) != 0) {
+  if (setitimer(ITIMER_REAL, &itimer, NULL) != 0) {
     err_exit("setitimer failed: %s\n", strerror(errno));
   }
-  
 }
 
 /**
@@ -86,7 +83,7 @@ void grn_init(bool preempt) {
   STATE.current->status = RUNNING;
 
   if (preempt) {
-    //The user has requested preemption. Enable the functionality.
+    // The user has requested preemption. Enable the functionality.
     grn_interrupt_init();
   }
 }
@@ -106,16 +103,15 @@ void grn_init(bool preempt) {
 int grn_spawn(grn_fn fn, void *arg) {
   sigprocmask(SIG_BLOCK, &timer_sig, NULL);
   grn_thread *new_thread = grn_new_thread(true);
-  //When the context switch enters this thread and returns, we should be in start_thread
-  //and start_thread should have the function we want to run on the top of the stack
+  // When the context switch enters this thread and returns, we should be in start_thread
+  // and start_thread should have the function we want to run on the top of the stack
   int stack_sizeq = (STACK_SIZE) / 8;
-  uint64_t *stackq = (uint64_t *) new_thread->stack;
+  uint64_t *stackq = (uint64_t *)new_thread->stack;
 
-  
-  stackq[stack_sizeq - 4] = (uint64_t) start_thread;
-  stackq[stack_sizeq - 2] = (uint64_t) arg;
-  stackq[stack_sizeq - 1] = (uint64_t) fn;
-  new_thread->context.rsp = (uint64_t) &stackq[stack_sizeq - 4];
+  stackq[stack_sizeq - 4] = (uint64_t)start_thread;
+  stackq[stack_sizeq - 2] = (uint64_t)arg;
+  stackq[stack_sizeq - 1] = (uint64_t)fn;
+  new_thread->context.rsp = (uint64_t)&stackq[stack_sizeq - 4];
 
   new_thread->status = READY;
 
@@ -131,13 +127,13 @@ int grn_spawn(grn_fn fn, void *arg) {
  */
 void grn_gc() {
 
-  //We don't gc the current thread, since we will context switch from it
-  grn_thread* iter_thread = next_thread(grn_current());
-  
-  while(iter_thread != grn_current()) {
-    if(iter_thread->status == ZOMBIE) {
-      grn_thread* next_iter_thread = next_thread(iter_thread);
-      
+  // We don't gc the current thread, since we will context switch from it
+  grn_thread *iter_thread = next_thread(grn_current());
+
+  while (iter_thread != grn_current()) {
+    if (iter_thread->status == ZOMBIE) {
+      grn_thread *next_iter_thread = next_thread(iter_thread);
+
       grn_destroy_thread(iter_thread);
 
       iter_thread = next_iter_thread;
@@ -145,7 +141,6 @@ void grn_gc() {
       iter_thread = next_thread(iter_thread);
     }
   }
-
 }
 
 /**
@@ -161,39 +156,39 @@ void grn_gc() {
  */
 int grn_yield() {
 
-  //We don't want to be interrupted when we're scheduling the next thread
+  // We don't want to be interrupted when we're scheduling the next thread
   sigprocmask(SIG_BLOCK, &timer_sig, NULL);
-  
+
   grn_gc();
-  
+
   grn_thread *prev = STATE.current;
-  
-  //We start our search for the next thread to run at the next thread pointed to by our current thread in the linked list
+
+  // We start our search for the next thread to run at the next thread pointed to by our current thread in the linked list
   grn_thread *next = next_thread(prev);
 
-  //We loop until we find a ready thread, or until we've searched through all the threads and looped back to the original one
-  while(next->status != READY && next != prev) {
+  // We loop until we find a ready thread, or until we've searched through all the threads and looped back to the original one
+  while (next->status != READY && next != prev) {
     next = next_thread(next);
   }
 
-  //If we got back to the original thread, that means we couldn't find anything else to schedule, so we return -1 to indicate that no yielding happened
-  if(next == prev) {
+  // If we got back to the original thread, that means we couldn't find anything else to schedule, so we return -1 to indicate that no yielding happened
+  if (next == prev) {
     sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
     return -1;
   }
 
-  //Else, we swap out the current thread for the new one
+  // Else, we swap out the current thread for the new one
   STATE.current = next;
 
-  //Update statuses
+  // Update statuses
   next->status = RUNNING;
-  //We only set the prev thread to READY if it was running before, which tells us that it didn't yield because it's work was complete
-  if(prev->status == RUNNING)
+  // We only set the prev thread to READY if it was running before, which tells us that it didn't yield because it's work was complete
+  if (prev->status == RUNNING)
     prev->status = READY;
 
   grn_context_switch(&prev->context, &next->context);
 
-  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);  
+  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
   return 0;
 }
 
@@ -208,7 +203,8 @@ int grn_yield() {
  */
 int grn_wait() {
   // Loop until grn_yield returns nonzero.
-  while (!grn_yield());
+  while (!grn_yield())
+    ;
 
   return 0;
 }
@@ -220,7 +216,8 @@ int grn_wait() {
  * progam. Otherwise, the calling thread is marked ZOMBIE so that it is never
  * rescheduled and is eventually garbage collected. This function never returns.
  */
-void grn_exit() {
+void grn_exit(void *ret) {
+  UNUSED(ret);
   sigprocmask(SIG_BLOCK, &timer_sig, NULL);
   debug("Thread %" PRId64 " is exiting.\n", STATE.current->id);
   if (STATE.current->id == 0) {
@@ -234,7 +231,7 @@ void grn_exit() {
 /**
  * For compatbility across name manglers.
  */
-void _grn_exit() { grn_exit(); }
+void _grn_exit(void *ret) { grn_exit(ret); }
 
 sigset_t *get_sigset() {
   return &timer_sig;

@@ -1,25 +1,25 @@
 #include <inttypes.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
-#include "test.h"
 #include "chloros.h"
+#include "test.h"
 
 #define ITER_NUM 100
 #define NUM_WORK 1 << 14
-static volatile int WORK_DONE[ITER_NUM] = { 0 };
+static volatile int WORK_DONE[ITER_NUM] = {0};
 
-static int yield_loop() {
+static void *yield_loop() {
   int i;
   for (i = 0; i < ITER_NUM; i++) {
     printf("%" PRId64 ".%d\n", grn_current()->id, i);
     grn_yield();
   }
 
-  return 0;
+  return (void *)0;
 }
 
 /**
@@ -102,7 +102,7 @@ static bool test_yield_iter() {
   return true;
 }
 
-static int do_work() {
+static void *do_work() {
   int64_t id = grn_current()->id;
 
   // Ensure the thread ID is valid. Otherwise, fail.
@@ -122,7 +122,7 @@ static int do_work() {
   }
 
   WORK_DONE[id - 1] = i;
-  return 0;
+  return (void *)0;
 }
 
 static bool worker_threads() {
