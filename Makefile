@@ -18,7 +18,7 @@ CHLOROS_OBJS = $(CHLOROS_C_SRCS:%.c=$(OBJ_DIR)/%.o) $(CHLOROS_S_SRCS:%.S=$(OBJ_D
 
 TEST_SRCS = test.c test_utils.c \
 	phase1_tests.c phase2_tests.c phase3_tests.c phase4_tests.c phase5_tests.c \
-	phase6_tests.c argument_tests.c
+	phase6_tests.c argument_tests.c join_tests.c
 
 TEST_OBJS = $(TEST_SRCS:%.c=$(OBJ_DIR)/%.o)
 

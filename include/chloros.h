@@ -40,21 +40,20 @@ typedef struct grn_thread_struct {
   uint8_t *stack;
   struct grn_thread_struct *prev;
   struct grn_thread_struct *next;
-  struct grn_thread_struct *joining;
+  void *return_value;
 } grn_thread;
 
 /*
  * The type of a function that can be the initial function of a green thread.
  */
 typedef void *(*grn_fn)(void *);
-
 void grn_init(bool);
 int grn_spawn(grn_fn, void *);
 int grn_yield();
 int grn_wait();
 grn_thread *grn_current();
 void grn_exit(void *);
-int grn_join(int64_t, void *);
+int grn_join(int64_t, void **);
 sigset_t *get_sigset();
 
 // 1 << 20 == 1MB * 2 == 2MB

@@ -25,19 +25,19 @@ extern const char *KGRN;
 /*
  * The color escape sequences for terminals.
  */
-#define KNRM_TERM  "\x1B[0m"
-#define KRED_TERM  "\x1B[31m"
-#define KGRN_TERM  "\x1B[32m"
+#define KNRM_TERM "\x1B[0m"
+#define KRED_TERM "\x1B[31m"
+#define KGRN_TERM "\x1B[32m"
 
 /*
  * Define max and min.
  */
 #ifndef max
-    #define max(a,b) ((a) > (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
 #ifndef min
-    #define min(a,b) ((a) < (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
 /**
@@ -49,15 +49,14 @@ extern const char *KGRN;
  * @param first The first string.
  * @param second The second string.
  */
-#define check_eq_str(first, second) \
-  do { \
-    if (strcmp((first), (second))) \
-    { \
+#define check_eq_str(first, second)                                    \
+  do {                                                                 \
+    if (strcmp((first), (second))) {                                   \
       printf(":: %s:%d: Check '%s == %s' (\"%s\" == \"%s\") failed\n", \
-          __FILE__, __LINE__, #first, #second, \
-          first, second); \
-      return false;  \
-    } \
+             __FILE__, __LINE__, #first, #second,                      \
+             first, second);                                           \
+      return false;                                                    \
+    }                                                                  \
   } while (0)
 
 /**
@@ -69,15 +68,14 @@ extern const char *KGRN;
  * @param first The first number.
  * @param second The second number.
  */
-#define check_eq(first, second) \
-  do { \
-    if (!((first) == (second))) \
-    { \
+#define check_eq(first, second)                                  \
+  do {                                                           \
+    if (!((first) == (second))) {                                \
       printf(":: %s:%d: Check '%s == %s' (%ld == %ld) failed\n", \
-          __FILE__, __LINE__, #first, #second, \
-          (long) (first), (long) (second)); \
-      return false;  \
-    } \
+             __FILE__, __LINE__, #first, #second,                \
+             (long)(first), (long)(second));                     \
+      return false;                                              \
+    }                                                            \
   } while (0)
 
 /**
@@ -89,15 +87,14 @@ extern const char *KGRN;
  * @param first The first number.
  * @param second The second number.
  */
-#define check_neq(first, second) \
-  do { \
-    if (!((first) != (second))) \
-    { \
+#define check_neq(first, second)                                 \
+  do {                                                           \
+    if (!((first) != (second))) {                                \
       printf(":: %s:%d: Check '%s != %s' (%ld != %ld) failed\n", \
-          __FILE__, __LINE__, #first, #second, \
-          (long) (first), (long) (second)); \
-      return false;  \
-    } \
+             __FILE__, __LINE__, #first, #second,                \
+             (long)(first), (long)(second));                     \
+      return false;                                              \
+    }                                                            \
   } while (0)
 
 /**
@@ -108,14 +105,13 @@ extern const char *KGRN;
  *
  * @param condition The condition to check.
  */
-#define check(condition) \
-  do { \
-    if (!(condition)) \
-    { \
+#define check(condition)                      \
+  do {                                        \
+    if (!(condition)) {                       \
       printf(":: %s:%d: Check '%s' failed\n", \
-          __FILE__, __LINE__, #condition); \
-      return false;  \
-    } \
+             __FILE__, __LINE__, #condition); \
+      return false;                           \
+    }                                         \
   } while (0)
 
 /*
@@ -131,10 +127,10 @@ extern const char *KGRN;
  *
  * @param test_suite The test suite to run.
  */
-#define run_suite(test_suite) \
-  do { \
+#define run_suite(test_suite)                           \
+  do {                                                  \
     bool success = _run_suite(#test_suite, test_suite); \
-    *_result = *_result && success; \
+    *_result = *_result && success;                     \
   } while (0)
 
 /*
@@ -152,10 +148,10 @@ extern const char *KGRN;
  *
  * @param test_fn The test function to run.
  */
-#define run_test(test_fn) \
-  do { \
+#define run_test(test_fn)                                                 \
+  do {                                                                    \
     bool success = _run_test(#test_fn, test_fn, _num_tests, _num_passed); \
-    *_result = *_result && success; \
+    *_result = *_result && success;                                       \
   } while (0)
 
 /*
@@ -164,7 +160,7 @@ extern const char *KGRN;
 void _main_test_function(bool *);
 bool _run_test(const char *name, bool (*fn)(void), int *ntests, int *npassed);
 bool _run_suite(const char *name, void (*fn)(bool *result, int *_num_tests,
-      int *_num_passed));
+                                             int *_num_passed));
 
 int begin_testing(int, const char *argv[]);
 
@@ -178,5 +174,6 @@ void phase4_tests(bool *result, int *_num_tests, int *_num_passed);
 void phase5_tests(bool *result, int *_num_tests, int *_num_passed);
 void phase6_tests(bool *result, int *_num_tests, int *_num_passed);
 void argument_tests(bool *result, int *_num_tests, int *_num_passed);
+void join_tests(bool *result, int *_num_tests, int *_num_passed);
 
 #endif

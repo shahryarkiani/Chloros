@@ -208,6 +208,36 @@ int grn_wait() {
 
   return 0;
 }
+/**
+ *  Blocks until the specificed thread has finished executing.
+ *
+ *  If ret is not NULL
+ *  Stores the return value of the specificed thread in the location pointed to by ret
+ *
+ *  @return 0 on succesfful join, -1 otherwise
+ */
+int grn_join(int64_t thread_id, void **return_value_ptr) {
+  grn_thread *joining = next_thread(STATE.current);
+
+  // Might want to add a hashmap for fast lookup of threads by id
+  while (joining != STATE.current && joining->id != thread_id) {
+    joining = next_thread(joining);
+  }
+
+  if (joining == STATE.current || joining->status == ZOMBIE) {
+    return -1; // Can't join this thread
+  }
+
+  while (joining->status != JOINABLE) {
+    grn_yield();
+  }
+
+  if (return_value_ptr != NULL) {
+    *return_value_ptr = joining->return_value;
+  }
+
+  return 0;
+}
 
 /**
  * Exits from the calling thread.
@@ -217,14 +247,17 @@ int grn_wait() {
  * rescheduled and is eventually garbage collected. This function never returns.
  */
 void grn_exit(void *ret) {
-  UNUSED(ret);
   sigprocmask(SIG_BLOCK, &timer_sig, NULL);
   debug("Thread %" PRId64 " is exiting.\n", STATE.current->id);
   if (STATE.current->id == 0) {
     exit(0);
   }
 
-  STATE.current->status = ZOMBIE;
+  STATE.current->return_value = ret;
+
+  // A thread must be joined before it can be garbage collected
+  // TODO: Let the user indicate whether they want a thread to be joinable at creation
+  STATE.current->status = JOINABLE;
   grn_yield();
 }
 
