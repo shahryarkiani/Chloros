@@ -1,14 +1,18 @@
 #include <inttypes.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "chloros.h"
-#include "utils.h"
 #include "main.h"
 #include "thread.h"
+#include "utils.h"
+
+#undef malloc
+#undef calloc
+#undef free
 
 /**
  * Returns a unique number.
@@ -92,18 +96,18 @@ grn_thread *next_thread(grn_thread *thread) {
  * @return a pointer to the newly allocated grn_thread structure
  */
 grn_thread *grn_new_thread(bool alloc_stack) {
-  
+
   grn_thread *new_thread = calloc(sizeof(grn_thread), 1);
 
   new_thread->id = atomic_next_id();
 
-  if(alloc_stack) {
-    int allocated = posix_memalign((void**)&new_thread->stack, 16, STACK_SIZE);
+  if (alloc_stack) {
+    int allocated = posix_memalign((void **)&new_thread->stack, 16, STACK_SIZE);
     assert(allocated == 0);
   }
 
   add_thread(new_thread);
-  
+
   return new_thread;
 }
 
@@ -116,12 +120,11 @@ grn_thread *grn_new_thread(bool alloc_stack) {
 void grn_destroy_thread(grn_thread *thread) {
   remove_thread(thread);
 
-  if(thread->stack != NULL) {
+  if (thread->stack != NULL) {
     free(thread->stack);
   }
 
   free(thread);
-
 }
 
 /**
@@ -132,11 +135,20 @@ void grn_destroy_thread(grn_thread *thread) {
 void debug_thread_print(grn_thread *thread) {
   const char *status;
   switch (thread->status) {
-    case WAITING: status = "WAITING"; break;
-    case READY: status = "READY"; break;
-    case RUNNING: status = "RUNNING"; break;
-    case ZOMBIE: status = "ZOMBIE"; break;
-    default: status = "UNKNOWN";
+  case WAITING:
+    status = "WAITING";
+    break;
+  case READY:
+    status = "READY";
+    break;
+  case RUNNING:
+    status = "RUNNING";
+    break;
+  case ZOMBIE:
+    status = "ZOMBIE";
+    break;
+  default:
+    status = "UNKNOWN";
   }
 
   fprintf(stderr, ":: Thread ID:\t %" PRId64 "\n", thread->id);

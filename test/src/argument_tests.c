@@ -11,7 +11,7 @@ static void *modify_arg(void *arg) {
 
 static bool arg_test() {
 
-  grn_init(false);
+  grn_init(true);
   grn_spawn(modify_arg, &return_val);
   grn_wait();
 

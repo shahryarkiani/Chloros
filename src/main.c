@@ -14,7 +14,7 @@
 #include "thread.h"
 #include "utils.h"
 
-#define INTERVAL 25000
+#define INTERVAL 10000
 
 #undef malloc
 #undef calloc
@@ -213,14 +213,16 @@ int grn_wait() {
   return 0;
 }
 /**
- *  Blocks until the specificed thread has finished executing.
+ *  Blocks until the specified thread has finished executing.
  *
  *  If ret is not NULL
- *  Stores the return value of the specificed thread in the location pointed to by ret
+ *  Stores the return value of the specified thread in the location pointed to by ret
+ *  A thread's resources will only be freed after it has been joined
  *
  *  @return 0 on succesfful join, -1 otherwise
  */
 int grn_join(int64_t thread_id, void **return_value_ptr) {
+
   grn_thread *joining = next_thread(STATE.current);
 
   // Might want to add a hashmap for fast lookup of threads by id
@@ -233,6 +235,7 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
   }
 
   while (joining->status != JOINABLE) {
+    debug("Thread %" PRId64 " is joining Thread %" PRId64 ". \n", STATE.current->id, joining->id);
     grn_yield();
   }
 
