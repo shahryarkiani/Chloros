@@ -16,6 +16,10 @@
 
 #define INTERVAL 25000
 
+#undef malloc
+#undef calloc
+#undef free
+
 /*
  * Initial global state.
  */
@@ -283,4 +287,26 @@ sigset_t *_get_sigset() {
  */
 grn_thread *grn_current() {
   return STATE.current;
+}
+
+// Wrapper functions around non-reentrant library calls
+
+void *chloros_malloc(size_t size) {
+  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  void *ret_val = malloc(size);
+  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+  return ret_val;
+}
+
+void *chloros_calloc(size_t nmemb, size_t size) {
+  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  void *ret_val = calloc(nmemb, size);
+  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+  return ret_val;
+}
+
+void chloros_free(void *ptr) {
+  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  free(ptr);
+  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
 }

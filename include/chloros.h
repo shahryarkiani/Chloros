@@ -15,6 +15,10 @@
 #error Library only implemented for AMD64!
 #endif
 
+#define malloc chloros_malloc
+#define calloc chloros_calloc
+#define free chloros_free
+
 typedef enum {
   WAITING,
   READY,
@@ -55,6 +59,11 @@ grn_thread *grn_current();
 void grn_exit(void *);
 int grn_join(int64_t, void **);
 sigset_t *get_sigset();
+
+// Wrapper functions around non-reentrant library calls
+void *chloros_malloc(size_t);
+void *chloros_calloc(size_t, size_t);
+void chloros_free(void *);
 
 // 1 << 20 == 1MB * 2 == 2MB
 static const uint64_t STACK_SIZE = (1 << 20) * 2;
