@@ -8,10 +8,15 @@
  */
 typedef struct chloros_state_struct {
   /**
-   * A pointer to the head of the linked list of threads being managed by the
-   * library.
+   * A pointer to the head of the linked list of active threads being managed
+   * by the library.
    */
-  grn_thread *threads;
+  grn_thread *active_threads;
+
+  /**
+   * A pointer to the head of the linked list of waiting threads
+   */
+  grn_thread *waiting_threads;
 
   /**
    * Pointer to the currently active thread.

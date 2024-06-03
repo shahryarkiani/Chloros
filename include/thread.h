@@ -13,6 +13,11 @@ int64_t atomic_next_id();
 void add_thread(grn_thread *);
 void remove_thread(grn_thread *);
 grn_thread *next_thread(grn_thread *);
+grn_thread *next_waiting_thread(grn_thread *);
+void add_waiting_thread(grn_thread *);
+void remove_waiting_thread(grn_thread *);
+void move_thread_to_waiting(grn_thread *);
+void move_thread_to_active(grn_thread *);
 
 /*
  * Thread creation and destruction.
@@ -24,7 +29,6 @@ void grn_destroy_thread(grn_thread *);
  * Pretty debug-printing for a thread structure.
  */
 void debug_thread_print(grn_thread *);
-
 
 /*
  * The functions below are implemented in context_switch.S.

@@ -24,7 +24,8 @@
  * Initial global state.
  */
 chloros_state STATE = {
-    .threads = NULL,
+    .active_threads = NULL,
+    .waiting_threads = NULL,
     .current = NULL};
 
 sigset_t timer_sig;
@@ -85,6 +86,8 @@ void grn_init(bool preempt) {
   STATE.current = grn_new_thread(false);
   assert_malloc(STATE.current);
   STATE.current->status = RUNNING;
+
+  STATE.waiting_threads = NULL;
 
   if (preempt) {
     // The user has requested preemption. Enable the functionality.
@@ -223,6 +226,8 @@ int grn_wait() {
  */
 int grn_join(int64_t thread_id, void **return_value_ptr) {
 
+  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+
   grn_thread *joining = next_thread(STATE.current);
 
   // Might want to add a hashmap for fast lookup of threads by id
@@ -239,9 +244,13 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
     grn_yield();
   }
 
+  joining->status = ZOMBIE;
+
   if (return_value_ptr != NULL) {
     *return_value_ptr = joining->return_value;
   }
+
+  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
 
   return 0;
 }

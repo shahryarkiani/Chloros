@@ -1,17 +1,18 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
-#include <unistd.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
+#include "main.h"
 #include "test.h"
 #include "thread.h"
-#include "main.h"
 
 static grn_thread *thread_from_id(int64_t id) {
   grn_thread *thread;
-  for (thread = STATE.threads; thread != NULL; thread = thread->next) {
-    if (thread->id == id) return thread;
+  for (thread = STATE.active_threads; thread != NULL; thread = thread->next) {
+    if (thread->id == id)
+      return thread;
   }
 
   return NULL;
@@ -84,7 +85,7 @@ static bool alloc_with_stack() {
     check(t);
 
     check_neq(t->stack, NULL);
-    check(((uint64_t) t->stack) % 16 == 0);
+    check(((uint64_t)t->stack) % 16 == 0);
     threads[i] = t;
   }
 
@@ -92,12 +93,13 @@ static bool alloc_with_stack() {
   for (int i = 0; i < NUM; ++i) {
     grn_thread *thread1 = threads[i];
     for (int j = 0; j < NUM; ++j) {
-      if (i == j) continue;
+      if (i == j)
+        continue;
       grn_thread *thread2 = threads[j];
       check_neq(thread1->stack, thread2->stack);
 
-      uint64_t higher = (uint64_t) max(thread1->stack, thread2->stack);
-      uint64_t lower = (uint64_t) min(thread1->stack, thread2->stack);
+      uint64_t higher = (uint64_t)max(thread1->stack, thread2->stack);
+      uint64_t lower = (uint64_t)min(thread1->stack, thread2->stack);
       check((higher - lower) >= STACK_SIZE);
     }
   }

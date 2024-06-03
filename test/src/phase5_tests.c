@@ -1,18 +1,19 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
-#include <unistd.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
+#include "chloros.h"
+#include "main.h"
 #include "test.h"
 #include "thread.h"
-#include "main.h"
-#include "chloros.h"
 
 static grn_thread *thread_from_id(int64_t id) {
   grn_thread *thread;
-  for (thread = STATE.threads; thread != NULL; thread = thread->next) {
-    if (thread->id == id) return thread;
+  for (thread = STATE.active_threads; thread != NULL; thread = thread->next) {
+    if (thread->id == id)
+      return thread;
   }
 
   return NULL;

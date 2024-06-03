@@ -45,3 +45,4 @@ lib/
 
 # Editor Config
 .clangd
+compile_commands.json
