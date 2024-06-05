@@ -72,11 +72,13 @@ void add_waiting_thread(grn_thread *thread) {
  * @param thread: the thread being moved from active_threads to waiting_threads
  */
 void move_thread_to_waiting(grn_thread *thread) {
+  thread->status = WAITING;
   remove_thread(thread);
   add_waiting_thread(thread);
 }
 
 void move_thread_to_active(grn_thread *thread) {
+  thread->status = READY;
   remove_waiting_thread(thread);
   add_thread(thread);
 }

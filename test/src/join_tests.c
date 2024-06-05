@@ -12,6 +12,7 @@ static bool simple_join_test() {
   int64_t id = grn_spawn(double_arg, (void *)21);
   int return_val = 0;
   grn_join(id, (void **)&return_val);
+  check_eq(return_val, 42);
 
   id = grn_spawn(double_arg, (void *)100);
   grn_join(id, (void **)&return_val);

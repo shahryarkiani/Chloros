@@ -45,6 +45,7 @@ typedef struct grn_thread_struct {
   struct grn_thread_struct *prev;
   struct grn_thread_struct *next;
   void *return_value;
+  struct grn_thread_struct *waiting;
 } grn_thread;
 
 /*

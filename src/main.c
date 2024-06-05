@@ -192,6 +192,9 @@ int grn_yield() {
   // We only set the prev thread to READY if it was running before, which tells us that it didn't yield because it's work was complete
   if (prev->status == RUNNING)
     prev->status = READY;
+  else if (prev->status == WAITING) {
+    move_thread_to_waiting(prev);
+  }
 
   grn_context_switch(&prev->context, &next->context);
 
@@ -235,13 +238,20 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
     joining = next_thread(joining);
   }
 
-  if (joining == STATE.current || joining->status == ZOMBIE) {
+  if (joining == STATE.current || joining->status == ZOMBIE || joining->waiting != NULL) {
     return -1; // Can't join this thread
   }
 
-  while (joining->status != JOINABLE) {
+  joining->waiting = STATE.current;
+
+  if (joining->status != JOINABLE) {
     debug("Thread %" PRId64 " is joining Thread %" PRId64 ". \n", STATE.current->id, joining->id);
+
+    // Mark the current thread as WAITING, the next time it runs, joining->status will be JOINABLE
+    STATE.current->status = WAITING;
     grn_yield();
+  } else {
+    debug("Thread %" PRId64 " is already JOINABLE, by Thread %" PRId64 "\n", joining->id, STATE.current->id);
   }
 
   joining->status = ZOMBIE;
@@ -274,6 +284,13 @@ void grn_exit(void *ret) {
   // A thread must be joined before it can be garbage collected
   // TODO: Let the user indicate whether they want a thread to be joinable at creation
   STATE.current->status = JOINABLE;
+
+  // There is a thread waiting for us to be JOINABLE
+  if (STATE.current->waiting != NULL) {
+    debug("Thread %" PRId64 " is waking up Thread %" PRId64 "\n", STATE.current->id, STATE.current->waiting->id);
+    move_thread_to_active(STATE.current->waiting);
+  }
+
   grn_yield();
 }
 
