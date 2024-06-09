@@ -14,7 +14,7 @@
 #include "thread.h"
 #include "utils.h"
 
-#define INTERVAL 10000
+#define INTERVAL 5000
 
 #undef malloc
 #undef calloc
@@ -50,7 +50,7 @@ void grn_handle_interrupt(int signum) {
 void grn_interrupt_init() {
   // Configure the signal set we want to listen for
   sigemptyset(&timer_sig);
-  sigaddset(&timer_sig, SIGALRM);
+  sigaddset(&timer_sig, SIGVTALRM);
 
   // Configure the timer
   struct itimerval itimer;
@@ -65,10 +65,10 @@ void grn_interrupt_init() {
   timeout_action.sa_mask = timer_sig;
   timeout_action.sa_flags = 0;
 
-  if (sigaction(SIGALRM, &timeout_action, NULL) != 0) {
+  if (sigaction(SIGVTALRM, &timeout_action, NULL) != 0) {
     err_exit("sigaction failed: %s\n", strerror(errno));
   }
-  if (setitimer(ITIMER_REAL, &itimer, NULL) != 0) {
+  if (setitimer(ITIMER_VIRTUAL, &itimer, NULL) != 0) {
     err_exit("setitimer failed: %s\n", strerror(errno));
   }
 }

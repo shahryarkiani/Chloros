@@ -210,6 +210,9 @@ void debug_thread_print(grn_thread *thread) {
   case ZOMBIE:
     status = "ZOMBIE";
     break;
+  case JOINABLE:
+    status = "JOINABLE";
+    break;
   default:
     status = "UNKNOWN";
   }
