@@ -6,6 +6,7 @@ SRC_DIR = src
 BIN_DIR = bin
 LIB_DIR = lib
 TEST_DIR = test/src
+EXAMPLES_DIR = examples
 
 LDFLAGS = -ggdb
 ARFLAGS = -r
@@ -22,13 +23,16 @@ TEST_SRCS = test.c test_utils.c \
 
 TEST_OBJS = $(TEST_SRCS:%.c=$(OBJ_DIR)/%.o)
 
+EXAMPLES_SRCS = $(wildcard $(EXAMPLES_DIR)/*.c)
+EXAMPLES_BINS = $(EXAMPLES_SRCS:$(EXAMPLES_DIR)/%.c=$(BIN_DIR)/examples/%)
+
 LIB_NAME = chloros
 LIB = $(LIB_DIR)/lib$(LIB_NAME).a
 TEST_BIN = $(BIN_DIR)/test
 
 .PHONY: all clean test submission
 
-vpath % $(SRC_DIR) $(TEST_DIR)
+vpath % $(SRC_DIR) $(TEST_DIR) $(EXAMPLES_DIR)
 
 $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(@D)
@@ -46,11 +50,16 @@ $(TEST_BIN): $(TEST_OBJS) $(LIB)
 	@mkdir -p $(@D)
 	$(CC) $(LDFLAGS) -L$(LIB_DIR) -lchloros -o $@ $^
 
+$(EXAMPLES_BINS): $(LIB) $(EXAMPLES_SRCS)
+	@mkdir -p $(@D)
+	$(CC) $(CCFLAGS) $(LDFLAGS) -o $@ $^ -L$(LIB_DIR) -lchloros
+
 all: $(LIB)
 
 test: $(TEST_BIN)
 	@$(TEST_BIN)
 
+examples: $(EXAMPLES_BINS)
 
 clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR) $(LIB_DIR)
