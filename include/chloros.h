@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #if defined(__amd64__) || defined(__amd64) || defined(__x64_64__) || defined(__x64_64) || defined(_M_AMD64) || defined(_M_X64)
 #define ARCH64 1
@@ -52,6 +53,7 @@ typedef struct grn_thread_struct {
  * The type of a function that can be the initial function of a green thread.
  */
 typedef void *(*grn_fn)(void *);
+
 void grn_init(bool);
 int grn_spawn(grn_fn, void *);
 int grn_yield();
@@ -65,6 +67,10 @@ sigset_t *get_sigset();
 void *chloros_malloc(size_t);
 void *chloros_calloc(size_t, size_t);
 void chloros_free(void *);
+
+// read()/write() syscall wrappers
+ssize_t grn_read(int, void *, size_t);
+ssize_t grn_write(int, const void *, size_t);
 
 // 1 << 20 == 1MB * 2 == 2MB
 static const uint64_t STACK_SIZE = (1 << 20) * 2;

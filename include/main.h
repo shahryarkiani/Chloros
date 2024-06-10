@@ -22,10 +22,24 @@ typedef struct chloros_state_struct {
    * Pointer to the currently active thread.
    */
   grn_thread *current;
+
+  /**
+   * sigset for signals used in preemptive scheduling
+   */
+  sigset_t timer_sig;
+
+  /**
+   * stores the epoll file descriptor number used by the scheduler
+   */
+  int epfd;
+
 } chloros_state;
 
 extern chloros_state STATE;
 
 void grn_gc();
+void grn_epoll();
+
+#define MAX_EVENTS 16
 
 #endif

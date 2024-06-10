@@ -7,7 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/epoll.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include "chloros.h"
 #include "main.h"
@@ -28,8 +30,6 @@ chloros_state STATE = {
     .waiting_threads = NULL,
     .current = NULL};
 
-sigset_t timer_sig;
-
 /**
  * Signal Handler for timer interrupts
  *
@@ -49,8 +49,8 @@ void grn_handle_interrupt(int signum) {
  */
 void grn_interrupt_init() {
   // Configure the signal set we want to listen for
-  sigemptyset(&timer_sig);
-  sigaddset(&timer_sig, SIGVTALRM);
+  sigemptyset(&STATE.timer_sig);
+  sigaddset(&STATE.timer_sig, SIGVTALRM);
 
   // Configure the timer
   struct itimerval itimer;
@@ -62,7 +62,7 @@ void grn_interrupt_init() {
   // Configure action handling
   struct sigaction timeout_action;
   timeout_action.sa_handler = grn_handle_interrupt;
-  timeout_action.sa_mask = timer_sig;
+  timeout_action.sa_mask = STATE.timer_sig;
   timeout_action.sa_flags = 0;
 
   if (sigaction(SIGVTALRM, &timeout_action, NULL) != 0) {
@@ -89,6 +89,12 @@ void grn_init(bool preempt) {
 
   STATE.waiting_threads = NULL;
 
+  STATE.epfd = epoll_create1(0);
+
+  if (STATE.epfd == -1) {
+    fprintf(stderr, "WARNING: Could not create EPOLL Instance\n");
+  }
+
   if (preempt) {
     // The user has requested preemption. Enable the functionality.
     grn_interrupt_init();
@@ -108,7 +114,7 @@ void grn_init(bool preempt) {
  * @return The thread ID of the newly spawned process.
  */
 int grn_spawn(grn_fn fn, void *arg) {
-  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
   grn_thread *new_thread = grn_new_thread(true);
   // When the context switch enters this thread and returns, we should be in start_thread
   // and start_thread should have the function we want to run on the top of the stack
@@ -123,7 +129,7 @@ int grn_spawn(grn_fn fn, void *arg) {
   new_thread->status = READY;
 
   grn_yield();
-  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
   return new_thread->id;
 }
 
@@ -150,6 +156,32 @@ void grn_gc() {
   }
 }
 
+struct epoll_event events[MAX_EVENTS];
+
+/*
+ * Runs epoll_wait() and moves any threads that have an event on them to active_threads
+ * so they can be scheduled and do their I/O operation
+ *
+ *
+ */
+void grn_epoll() {
+
+  // Instant timeout, we just want to see if anything has become ready while other threads were running
+  int epoll_ready_count = epoll_wait(STATE.epfd, events, MAX_EVENTS, 0);
+
+  for (int i = 0; i < epoll_ready_count; i++) {
+    // The event this thread is waiting on has happened
+    grn_thread *thread = (grn_thread *)events[i].data.ptr;
+
+    debug("Thread %" PRId64 " has an epoll event ready\n", thread->id);
+
+    assert(thread->status == WAITING);
+
+    // Move it to active so it can be scheduled
+    move_thread_to_active(thread);
+  }
+}
+
 /**
  * Yields the execution time of the current thread to another thread.
  *
@@ -164,9 +196,10 @@ void grn_gc() {
 int grn_yield() {
 
   // We don't want to be interrupted when we're scheduling the next thread
-  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
 
   grn_gc();
+  grn_epoll();
 
   grn_thread *prev = STATE.current;
 
@@ -180,7 +213,7 @@ int grn_yield() {
 
   // If we got back to the original thread, that means we couldn't find anything else to schedule, so we return -1 to indicate that no yielding happened
   if (next == prev) {
-    sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+    sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
     return -1;
   }
 
@@ -198,7 +231,7 @@ int grn_yield() {
 
   grn_context_switch(&prev->context, &next->context);
 
-  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
   return 0;
 }
 
@@ -229,7 +262,7 @@ int grn_wait() {
  */
 int grn_join(int64_t thread_id, void **return_value_ptr) {
 
-  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
 
   grn_thread *joining = next_thread(STATE.current);
 
@@ -260,7 +293,7 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
     *return_value_ptr = joining->return_value;
   }
 
-  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
 
   return 0;
 }
@@ -273,7 +306,7 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
  * rescheduled and is eventually garbage collected. This function never returns.
  */
 void grn_exit(void *ret) {
-  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
   debug("Thread %" PRId64 " is exiting.\n", STATE.current->id);
   if (STATE.current->id == 0) {
     exit(0);
@@ -300,7 +333,7 @@ void grn_exit(void *ret) {
 void _grn_exit(void *ret) { grn_exit(ret); }
 
 sigset_t *get_sigset() {
-  return &timer_sig;
+  return &STATE.timer_sig;
 }
 
 sigset_t *_get_sigset() {
@@ -321,21 +354,48 @@ grn_thread *grn_current() {
 // Wrapper functions around non-reentrant library calls
 
 void *chloros_malloc(size_t size) {
-  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
   void *ret_val = malloc(size);
-  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
   return ret_val;
 }
 
 void *chloros_calloc(size_t nmemb, size_t size) {
-  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
   void *ret_val = calloc(nmemb, size);
-  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
   return ret_val;
 }
 
 void chloros_free(void *ptr) {
-  sigprocmask(SIG_BLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
   free(ptr);
-  sigprocmask(SIG_UNBLOCK, &timer_sig, NULL);
+  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+}
+
+// read()/write() syscall wrappers
+
+ssize_t grn_read(int fd, void *buf, size_t count) {
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+
+  struct epoll_event event;
+
+  event.events = EPOLLIN;
+  event.data.ptr = STATE.current;
+
+  int err = epoll_ctl(STATE.epfd, EPOLL_CTL_ADD, fd, &event);
+
+  // TODO: check errno and inform user if they used a duplicate file descriptor
+  if (err == -1) {
+    fprintf(stderr, "Could not add fd %d to epoll\n", fd);
+  }
+
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  ssize_t bytes_read = read(fd, buf, count);
+
+  epoll_ctl(STATE.epfd, EPOLL_CTL_DEL, fd, NULL);
+
+  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+
+  return bytes_read;
 }
