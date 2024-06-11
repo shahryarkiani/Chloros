@@ -38,7 +38,7 @@ typedef struct chloros_state_struct {
 extern chloros_state STATE;
 
 void grn_gc();
-void grn_epoll();
+void grn_epoll(int timeout);
 
 #define MAX_EVENTS 16
 

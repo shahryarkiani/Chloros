@@ -37,6 +37,7 @@ chloros_state STATE = {
  */
 void grn_handle_interrupt(int signum) {
   UNUSED(signum);
+  debug("Thread %" PRId64 " interrupted\n", STATE.current->id);
   grn_yield();
 }
 
@@ -164,10 +165,10 @@ struct epoll_event events[MAX_EVENTS];
  *
  *
  */
-void grn_epoll() {
+void grn_epoll(int timeout) {
 
   // Instant timeout, we just want to see if anything has become ready while other threads were running
-  int epoll_ready_count = epoll_wait(STATE.epfd, events, MAX_EVENTS, 0);
+  int epoll_ready_count = epoll_wait(STATE.epfd, events, MAX_EVENTS, timeout);
 
   for (int i = 0; i < epoll_ready_count; i++) {
     // The event this thread is waiting on has happened
@@ -194,12 +195,28 @@ void grn_epoll() {
  * @return 0 if execution was yielded, -1 if no yielding occured
  */
 int grn_yield() {
-
   // We don't want to be interrupted when we're scheduling the next thread
   sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
 
+  debug("Thread %" PRId64 " is yielding\n", STATE.current->id);
+
   grn_gc();
-  grn_epoll();
+  if (STATE.current->status != WAITING || next_thread(STATE.current) != STATE.current) {
+    grn_epoll(0);
+  } else {
+    // Handle the case where all the threads are waiting
+    debug("No threads are active, blocking on epoll\n");
+    move_thread_to_waiting(STATE.current);
+    grn_epoll(-1);
+
+    // We don't want to call move_thread_to_active twice
+    // But regardless of whether this thread was woken up by epoll
+    // It needs to be on the active list, so it can later be moved back to waiting on line 250
+    if (STATE.current->status != READY) {
+      move_thread_to_active(STATE.current);
+      STATE.current->status = WAITING;
+    }
+  }
 
   grn_thread *prev = STATE.current;
 
@@ -214,6 +231,7 @@ int grn_yield() {
   // If we got back to the original thread, that means we couldn't find anything else to schedule, so we return -1 to indicate that no yielding happened
   if (next == prev) {
     sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+    debug("Couldn't find anything else to schedule\n");
     return -1;
   }
 
@@ -232,6 +250,7 @@ int grn_yield() {
   grn_context_switch(&prev->context, &next->context);
 
   sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+
   return 0;
 }
 
@@ -271,6 +290,22 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
     joining = next_thread(joining);
   }
 
+  if (joining->id != thread_id) {
+    joining = STATE.waiting_threads;
+
+    // Checks if we need to search the rest
+    if (joining->id != thread_id) {
+      joining = next_waiting_thread(joining);
+      while (joining != STATE.waiting_threads && joining->id != thread_id) {
+        joining = next_thread(joining);
+      }
+      // If we couldn't find it, we do this so the next if statements know
+      if (joining == STATE.waiting_threads) {
+        joining = STATE.current;
+      }
+    }
+  }
+
   if (joining == STATE.current || joining->status == ZOMBIE || joining->waiting != NULL) {
     return -1; // Can't join this thread
   }
@@ -286,6 +321,8 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
   } else {
     debug("Thread %" PRId64 " is already JOINABLE, by Thread %" PRId64 "\n", joining->id, STATE.current->id);
   }
+
+  debug("Thread %" PRId64 " has woken up\n", STATE.current->id);
 
   joining->status = ZOMBIE;
 
@@ -390,7 +427,12 @@ ssize_t grn_read(int fd, void *buf, size_t count) {
     fprintf(stderr, "Could not add fd %d to epoll\n", fd);
   }
 
+  STATE.current->status = WAITING;
+  grn_yield();
+  if (STATE.current->status == RUNNING)
+    debug("im back from epoll\n");
   sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+
   ssize_t bytes_read = read(fd, buf, count);
 
   epoll_ctl(STATE.epfd, EPOLL_CTL_DEL, fd, NULL);

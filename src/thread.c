@@ -196,6 +196,8 @@ void grn_destroy_thread(grn_thread *thread) {
  * @param thread the thread to debug pretty-pring
  */
 void debug_thread_print(grn_thread *thread) {
+  if (thread == NULL)
+    return;
   const char *status;
   switch (thread->status) {
   case WAITING:
