@@ -15,9 +15,11 @@ void remove_thread(grn_thread *);
 grn_thread *next_thread(grn_thread *);
 grn_thread *next_waiting_thread(grn_thread *);
 void add_waiting_thread(grn_thread *);
+void add_joinable_thread(grn_thread *);
 void remove_waiting_thread(grn_thread *);
 void move_thread_to_waiting(grn_thread *);
 void move_thread_to_active(grn_thread *);
+void move_thread_to_joinable(grn_thread *);
 
 /*
  * Thread creation and destruction.

@@ -19,6 +19,11 @@ typedef struct chloros_state_struct {
   grn_thread *waiting_threads;
 
   /**
+   * A pointer to the head of the linked list of joinable threads
+   */
+  grn_thread *joinable_threads;
+
+  /**
    * Pointer to the currently active thread.
    */
   grn_thread *current;

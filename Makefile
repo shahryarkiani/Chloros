@@ -50,9 +50,9 @@ $(TEST_BIN): $(TEST_OBJS) $(LIB)
 	@mkdir -p $(@D)
 	$(CC) $(LDFLAGS) -L$(LIB_DIR) -lchloros -o $@ $^
 
-$(EXAMPLES_BINS): $(LIB) $(EXAMPLES_SRCS)
+$(BIN_DIR)/examples/%: $(EXAMPLES_DIR)/%.c $(LIB)
 	@mkdir -p $(@D)
-	$(CC) $(CCFLAGS) $(LDFLAGS) -o $@ $^ -L$(LIB_DIR) -lchloros
+	$(CC) $(CCFLAGS) $(LDFLAGS) -o $@ $< -L$(LIB_DIR) -lchloros
 
 all: $(LIB)
 

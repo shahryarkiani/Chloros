@@ -63,6 +63,17 @@ void add_waiting_thread(grn_thread *thread) {
   STATE.waiting_threads = thread;
 }
 
+void add_joinable_thread(grn_thread *thread) {
+  assert(thread);
+  if (STATE.joinable_threads) {
+    STATE.joinable_threads->prev = thread;
+  }
+
+  thread->prev = NULL;
+  thread->next = STATE.joinable_threads;
+  STATE.joinable_threads = thread;
+}
+
 /**
  * Moves the `thread` to the linked list headed by STATE.waiting_threads.
  * The `thread` should be in the linked list headed by STATE.active_threads before
@@ -81,6 +92,12 @@ void move_thread_to_active(grn_thread *thread) {
   thread->status = READY;
   remove_waiting_thread(thread);
   add_thread(thread);
+}
+
+void move_thread_to_joinable(grn_thread *thread) {
+  // This will only be called on an active thread
+  remove_thread(thread);
+  add_joinable_thread(thread);
 }
 
 /**

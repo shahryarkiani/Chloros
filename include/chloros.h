@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #if defined(__amd64__) || defined(__amd64) || defined(__x64_64__) || defined(__x64_64) || defined(_M_AMD64) || defined(_M_X64)
 #define ARCH64 1
@@ -71,6 +73,9 @@ void chloros_free(void *);
 // read()/write() syscall wrappers
 ssize_t grn_read(int, void *, size_t);
 ssize_t grn_write(int, const void *, size_t);
+
+// accept() wrapper
+int grn_accept(int, struct sockaddr *, socklen_t *);
 
 // 1 << 20 == 1MB * 2 == 2MB
 static const uint64_t STACK_SIZE = (1 << 20) * 2;

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -141,10 +142,11 @@ int grn_spawn(grn_fn fn, void *arg) {
  */
 void grn_gc() {
 
-  // We don't gc the current thread, since we will context switch from it
-  grn_thread *iter_thread = next_thread(grn_current());
+  if (STATE.joinable_threads == NULL)
+    return;
+  grn_thread *iter_thread = next_thread(STATE.joinable_threads);
 
-  while (iter_thread != grn_current()) {
+  while (iter_thread != STATE.joinable_threads) {
     if (iter_thread->status == ZOMBIE) {
       grn_thread *next_iter_thread = next_thread(iter_thread);
 
@@ -201,7 +203,7 @@ int grn_yield() {
   debug("Thread %" PRId64 " is yielding\n", STATE.current->id);
 
   grn_gc();
-  if (STATE.current->status != WAITING || next_thread(STATE.current) != STATE.current) {
+  if ((STATE.current->status != WAITING && STATE.current->status != JOINABLE) || next_thread(STATE.current) != STATE.current) {
     grn_epoll(0);
   } else {
     // Handle the case where all the threads are waiting
@@ -245,6 +247,8 @@ int grn_yield() {
     prev->status = READY;
   else if (prev->status == WAITING) {
     move_thread_to_waiting(prev);
+  } else if (prev->status == JOINABLE) {
+    move_thread_to_joinable(prev);
   }
 
   grn_context_switch(&prev->context, &next->context);
@@ -283,30 +287,14 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
 
   sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
 
-  grn_thread *joining = next_thread(STATE.current);
+  grn_thread *joining = STATE.joinable_threads;
 
   // Might want to add a hashmap for fast lookup of threads by id
-  while (joining != STATE.current && joining->id != thread_id) {
-    joining = next_thread(joining);
+  while (joining != NULL && joining->id != thread_id) {
+    joining = joining->next;
   }
 
-  if (joining->id != thread_id) {
-    joining = STATE.waiting_threads;
-
-    // Checks if we need to search the rest
-    if (joining->id != thread_id) {
-      joining = next_waiting_thread(joining);
-      while (joining != STATE.waiting_threads && joining->id != thread_id) {
-        joining = next_thread(joining);
-      }
-      // If we couldn't find it, we do this so the next if statements know
-      if (joining == STATE.waiting_threads) {
-        joining = STATE.current;
-      }
-    }
-  }
-
-  if (joining == STATE.current || joining->status == ZOMBIE || joining->waiting != NULL) {
+  if (joining == NULL || joining->status == ZOMBIE || joining->waiting != NULL) {
     return -1; // Can't join this thread
   }
 
@@ -429,8 +417,7 @@ ssize_t grn_read(int fd, void *buf, size_t count) {
 
   STATE.current->status = WAITING;
   grn_yield();
-  if (STATE.current->status == RUNNING)
-    debug("im back from epoll\n");
+
   sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
 
   ssize_t bytes_read = read(fd, buf, count);
@@ -440,4 +427,57 @@ ssize_t grn_read(int fd, void *buf, size_t count) {
   sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
 
   return bytes_read;
+}
+
+ssize_t grn_write(int fd, const void *buf, size_t count) {
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+
+  struct epoll_event event;
+  event.events = EPOLLOUT;
+  event.data.ptr = STATE.current;
+
+  int err = epoll_ctl(STATE.epfd, EPOLL_CTL_ADD, fd, &event);
+
+  if (err == -1) {
+    fprintf(stderr, "Could not add fd %d to epoll\n", fd);
+  }
+
+  STATE.current->status = WAITING;
+  grn_yield();
+
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+
+  ssize_t bytes_written = write(fd, buf, count);
+
+  epoll_ctl(STATE.epfd, EPOLL_CTL_DEL, fd, NULL);
+
+  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+
+  return bytes_written;
+}
+
+// accept() wrapper
+int grn_accept(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict addrlen) {
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+
+  struct epoll_event event;
+  event.events = EPOLLIN;
+  event.data.ptr = STATE.current;
+
+  int err = epoll_ctl(STATE.epfd, EPOLL_CTL_ADD, sockfd, &event);
+
+  if (err == -1) {
+    fprintf(stderr, "Could not add fd %d to epoll\n", sockfd);
+  }
+
+  STATE.current->status = WAITING;
+  grn_yield();
+
+  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+
+  int accept_return = accept(sockfd, addr, addrlen);
+
+  epoll_ctl(STATE.epfd, EPOLL_CTL_DEL, sockfd, NULL);
+
+  return accept_return;
 }
