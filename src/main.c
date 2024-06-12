@@ -310,12 +310,6 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
     }
   }
 
-  grn_thread *temp = STATE.active_threads;
-
-  while (temp != NULL) {
-    temp = temp->next;
-  }
-
   if (joining == NULL) {
     joining = next_thread(STATE.current);
 
