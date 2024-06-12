@@ -144,17 +144,17 @@ void grn_gc() {
 
   if (STATE.joinable_threads == NULL)
     return;
-  grn_thread *iter_thread = next_thread(STATE.joinable_threads);
+  grn_thread *iter_thread = next_joinable_thread(STATE.joinable_threads);
 
   while (iter_thread != STATE.joinable_threads) {
     if (iter_thread->status == ZOMBIE) {
-      grn_thread *next_iter_thread = next_thread(iter_thread);
+      grn_thread *next_iter_thread = next_joinable_thread(iter_thread);
 
       grn_destroy_thread(iter_thread);
 
       iter_thread = next_iter_thread;
     } else {
-      iter_thread = next_thread(iter_thread);
+      iter_thread = next_joinable_thread(iter_thread);
     }
   }
 }
@@ -233,7 +233,6 @@ int grn_yield() {
   // If we got back to the original thread, that means we couldn't find anything else to schedule, so we return -1 to indicate that no yielding happened
   if (next == prev) {
     sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
-    debug("Couldn't find anything else to schedule\n");
     return -1;
   }
 
@@ -289,9 +288,45 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
 
   grn_thread *joining = STATE.joinable_threads;
 
-  // Might want to add a hashmap for fast lookup of threads by id
+  // TODO: find faster way to find join target(hashmap?)
+  // Check if the join target has already completed processing
   while (joining != NULL && joining->id != thread_id) {
     joining = joining->next;
+  }
+
+  // Check if the join targest is in the wait queue
+  if (joining == NULL && STATE.waiting_threads != NULL) {
+    joining = STATE.waiting_threads;
+
+    if (joining->id != thread_id) {
+      joining = next_waiting_thread(joining);
+      while (joining != STATE.waiting_threads && joining->id != thread_id) {
+        joining = next_waiting_thread(joining);
+      }
+      // If we couldn't find it, we do this so the next if statements know
+      if (joining == STATE.waiting_threads) {
+        joining = NULL;
+      }
+    }
+  }
+
+  grn_thread *temp = STATE.active_threads;
+
+  while (temp != NULL) {
+    temp = temp->next;
+  }
+
+  if (joining == NULL) {
+    joining = next_thread(STATE.current);
+
+    // Might want to add a hashmap for fast lookup of threads by id
+    while (joining != STATE.current && joining->id != thread_id) {
+      joining = next_thread(joining);
+    }
+
+    if (joining == STATE.current) {
+      joining = NULL;
+    }
   }
 
   if (joining == NULL || joining->status == ZOMBIE || joining->waiting != NULL) {

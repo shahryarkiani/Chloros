@@ -14,6 +14,7 @@ void add_thread(grn_thread *);
 void remove_thread(grn_thread *);
 grn_thread *next_thread(grn_thread *);
 grn_thread *next_waiting_thread(grn_thread *);
+grn_thread *next_joinable_thread(grn_thread *);
 void add_waiting_thread(grn_thread *);
 void add_joinable_thread(grn_thread *);
 void remove_waiting_thread(grn_thread *);

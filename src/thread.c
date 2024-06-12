@@ -157,6 +157,11 @@ grn_thread *next_thread(grn_thread *thread) {
   return (thread->next) ? thread->next : STATE.active_threads;
 }
 
+grn_thread *next_joinable_thread(grn_thread *thread) {
+  assert(thread);
+  return (thread->next) ? thread->next : STATE.joinable_threads;
+}
+
 grn_thread *next_waiting_thread(grn_thread *thread) {
   assert(thread);
   return (thread->next) ? thread->next : STATE.waiting_threads;
