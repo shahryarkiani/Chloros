@@ -37,6 +37,35 @@ static bool ping_pong_test() {
   return true;
 }
 
+static void *interrupt() {
+
+  const int ITERS = 50000000;
+
+  for (int i = 0; i < ITERS; i++) {
+    int *arr = malloc(sizeof(int) * (i % 31));
+
+    for (int j = 0; j < i % 31; j++) {
+      asm("");
+      arr[j] = 27 + j;
+    }
+
+    free(arr);
+  }
+
+  return (void *)0;
+}
+
+static bool interrupt_test() {
+
+  grn_init(true);
+  grn_spawn(interrupt, NULL);
+  grn_spawn(interrupt, NULL);
+  grn_spawn(interrupt, NULL);
+  grn_wait();
+
+  return true;
+}
+
 /**
  * The phase1 test suite. This function is declared via the
  * BEGIN_TEST_SUITE macro for easy testing.
@@ -57,4 +86,5 @@ static bool ping_pong_test() {
  */
 BEGIN_TEST_SUITE(phase6_tests) {
   run_test(ping_pong_test);
+  run_test(interrupt_test);
 }

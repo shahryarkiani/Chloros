@@ -39,6 +39,13 @@ chloros_state STATE = {
 void grn_handle_interrupt(int signum) {
   UNUSED(signum);
   debug("Thread %" PRId64 " interrupted\n", STATE.current->id);
+
+  if (STATE.current->preempt_count > 0) {
+    debug("Not rescheduling Thread %" PRId64 "\n", STATE.current->id);
+    STATE.current->should_reschedule = true;
+    return;
+  }
+
   grn_yield();
 }
 
@@ -116,7 +123,7 @@ void grn_init(bool preempt) {
  * @return The thread ID of the newly spawned process.
  */
 int grn_spawn(grn_fn fn, void *arg) {
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
   grn_thread *new_thread = grn_new_thread(true);
   // When the context switch enters this thread and returns, we should be in start_thread
   // and start_thread should have the function we want to run on the top of the stack
@@ -131,7 +138,7 @@ int grn_spawn(grn_fn fn, void *arg) {
   new_thread->status = READY;
 
   grn_yield();
-  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_enable();
   return new_thread->id;
 }
 
@@ -198,7 +205,7 @@ void grn_epoll(int timeout) {
  */
 int grn_yield() {
   // We don't want to be interrupted when we're scheduling the next thread
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
 
   debug("Thread %" PRId64 " is yielding\n", STATE.current->id);
 
@@ -232,7 +239,7 @@ int grn_yield() {
 
   // If we got back to the original thread, that means we couldn't find anything else to schedule, so we return -1 to indicate that no yielding happened
   if (next == prev) {
-    sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+    grn_preempt_enable();
     return -1;
   }
 
@@ -241,6 +248,11 @@ int grn_yield() {
 
   // Update statuses
   next->status = RUNNING;
+
+  // Reset their should_reschedule flags
+  prev->should_reschedule = false;
+  next->should_reschedule = false;
+
   // We only set the prev thread to READY if it was running before, which tells us that it didn't yield because it's work was complete
   if (prev->status == RUNNING)
     prev->status = READY;
@@ -252,7 +264,7 @@ int grn_yield() {
 
   grn_context_switch(&prev->context, &next->context);
 
-  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_enable();
 
   return 0;
 }
@@ -284,7 +296,7 @@ int grn_wait() {
  */
 int grn_join(int64_t thread_id, void **return_value_ptr) {
 
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
 
   grn_thread *joining = STATE.joinable_threads;
 
@@ -347,7 +359,7 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
     *return_value_ptr = joining->return_value;
   }
 
-  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_enable();
 
   return 0;
 }
@@ -360,7 +372,7 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
  * rescheduled and is eventually garbage collected. This function never returns.
  */
 void grn_exit(void *ret) {
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
   debug("Thread %" PRId64 " is exiting.\n", STATE.current->id);
   if (STATE.current->id == 0) {
     exit(0);
@@ -379,6 +391,19 @@ void grn_exit(void *ret) {
   }
 
   grn_yield();
+}
+
+void grn_preempt_enable() {
+
+  STATE.current->preempt_count--;
+
+  if (STATE.current->preempt_count == 0 && STATE.current->should_reschedule) {
+    grn_yield();
+  }
+}
+
+void grn_preempt_disable() {
+  STATE.current->preempt_count++;
 }
 
 /**
@@ -408,29 +433,29 @@ grn_thread *grn_current() {
 // Wrapper functions around non-reentrant library calls
 
 void *chloros_malloc(size_t size) {
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
   void *ret_val = malloc(size);
-  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_enable();
   return ret_val;
 }
 
 void *chloros_calloc(size_t nmemb, size_t size) {
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
   void *ret_val = calloc(nmemb, size);
-  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_enable();
   return ret_val;
 }
 
 void chloros_free(void *ptr) {
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
   free(ptr);
-  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_enable();
 }
 
 // read()/write() syscall wrappers
 
 ssize_t grn_read(int fd, void *buf, size_t count) {
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
 
   struct epoll_event event;
 
@@ -447,19 +472,19 @@ ssize_t grn_read(int fd, void *buf, size_t count) {
   STATE.current->status = WAITING;
   grn_yield();
 
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
 
   ssize_t bytes_read = read(fd, buf, count);
 
   epoll_ctl(STATE.epfd, EPOLL_CTL_DEL, fd, NULL);
 
-  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_enable();
 
   return bytes_read;
 }
 
 ssize_t grn_write(int fd, const void *buf, size_t count) {
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
 
   struct epoll_event event;
   event.events = EPOLLOUT;
@@ -474,20 +499,20 @@ ssize_t grn_write(int fd, const void *buf, size_t count) {
   STATE.current->status = WAITING;
   grn_yield();
 
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
 
   ssize_t bytes_written = write(fd, buf, count);
 
   epoll_ctl(STATE.epfd, EPOLL_CTL_DEL, fd, NULL);
 
-  sigprocmask(SIG_UNBLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_enable();
 
   return bytes_written;
 }
 
 // accept() wrapper
 int grn_accept(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict addrlen) {
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
 
   struct epoll_event event;
   event.events = EPOLLIN;
@@ -502,7 +527,7 @@ int grn_accept(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict a
   STATE.current->status = WAITING;
   grn_yield();
 
-  sigprocmask(SIG_BLOCK, &STATE.timer_sig, NULL);
+  grn_preempt_disable();
 
   int accept_return = accept(sockfd, addr, addrlen);
 

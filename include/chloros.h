@@ -49,6 +49,8 @@ typedef struct grn_thread_struct {
   struct grn_thread_struct *next;
   void *return_value;
   struct grn_thread_struct *waiting;
+  uint16_t preempt_count;
+  bool should_reschedule;
 } grn_thread;
 
 /*
@@ -64,6 +66,8 @@ grn_thread *grn_current();
 void grn_exit(void *);
 int grn_join(int64_t, void **);
 sigset_t *get_sigset();
+void grn_preempt_enable();
+void grn_preempt_disable();
 
 // Wrapper functions around non-reentrant library calls
 void *chloros_malloc(size_t);
