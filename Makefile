@@ -8,10 +8,10 @@ LIB_DIR = lib
 TEST_DIR = test/src
 EXAMPLES_DIR = examples
 
-LDFLAGS = -ggdb
+LDFLAGS =
 ARFLAGS = -r
-CCFLAGS = -ggdb -Wall -Wextra -Werror -Wswitch-default -Wwrite-strings \
-	-O3 -Iinclude -Itest/include -std=gnu99 $(CFLAGS)
+CCFLAGS = -Wall -Wextra -Werror -Wswitch-default -Wwrite-strings \
+	-O3 -Iinclude -Itest/include -fno-stack-protector $(CFLAGS)
 
 CHLOROS_C_SRCS = main.c thread.c
 CHLOROS_S_SRCS = context_switch.S

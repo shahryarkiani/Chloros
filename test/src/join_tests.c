@@ -1,13 +1,21 @@
 #include "chloros.h"
 #include "test.h"
 
+static long getVal(long input) {
+  if (input == 0) {
+    return 0;
+  } else {
+    return 1 + getVal(input - 1);
+  }
+}
+
 static void *double_arg(void *arg) {
   long input = (long)arg;
-  return (void *)(input * 2);
+  long result = getVal(input);
+  return (void *)(result * 2);
 }
 
 static bool simple_join_test() {
-
   grn_init(true);
   int64_t id = grn_spawn(double_arg, (void *)21);
   int return_val = 0;
@@ -23,8 +31,7 @@ static bool simple_join_test() {
 
 static void *recurse(void *arg) {
   long input = (long)arg;
-  if (input == 10)
-    return (void *)10;
+  if (input == 10) return (void *)10;
 
   int64_t id = grn_spawn(recurse, (void *)input + 1);
   int return_val = 0;
@@ -34,7 +41,6 @@ static void *recurse(void *arg) {
 }
 
 static bool nested_join_test() {
-
   grn_init(true);
   int64_t id = grn_spawn(recurse, (void *)1);
   int return_val = 0;

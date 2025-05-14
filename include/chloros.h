@@ -8,7 +8,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#if defined(__amd64__) || defined(__amd64) || defined(__x64_64__) || defined(__x64_64) || defined(_M_AMD64) || defined(_M_X64)
+#if defined(__amd64__) || defined(__amd64) || defined(__x64_64__) || \
+    defined(__x64_64) || defined(_M_AMD64) || defined(_M_X64)
 #define ARCH64 1
 #else
 #define ARCH64 0
@@ -22,13 +23,7 @@
 #define calloc chloros_calloc
 #define free chloros_free
 
-typedef enum {
-  WAITING,
-  READY,
-  RUNNING,
-  ZOMBIE,
-  JOINABLE
-} grn_status;
+typedef enum { WAITING, READY, RUNNING, ZOMBIE, JOINABLE } grn_status;
 
 typedef struct grn_context_struct {
   uint64_t rsp;
@@ -81,7 +76,7 @@ ssize_t grn_write(int, const void *, size_t);
 // accept() wrapper
 int grn_accept(int, struct sockaddr *, socklen_t *);
 
-// 1 << 20 == 1MB * 2 == 2MB
-static const uint64_t STACK_SIZE = (1 << 20) * 2;
+// 1 << 20 == 1MB
+static const uint64_t STACK_SIZE = (1 << 20);
 
 #endif
