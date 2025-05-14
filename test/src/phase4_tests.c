@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -33,14 +34,11 @@ static void *yield_loop() {
  */
 static int pipe_stdout(int *out, int *saved_stdout) {
   int o_fds[2];
-  if (pipe(o_fds) < 0)
-    return -1;
+  if (pipe(o_fds) < 0) return -1;
 
-  if (out)
-    *out = o_fds[1];
+  if (out) *out = o_fds[1];
 
-  if (saved_stdout)
-    *saved_stdout = dup(fileno(stdout));
+  if (saved_stdout) *saved_stdout = dup(fileno(stdout));
 
   dup2(o_fds[1], fileno(stdout));
   return o_fds[0];
