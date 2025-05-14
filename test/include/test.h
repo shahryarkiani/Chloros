@@ -11,8 +11,6 @@
 #define SXRUNTIME_START_TEST_H
 
 #include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
 
 /*
  * These are set to the color escape sequence if we're printing out to a
@@ -53,8 +51,7 @@ extern const char *KGRN;
   do {                                                                 \
     if (strcmp((first), (second))) {                                   \
       printf(":: %s:%d: Check '%s == %s' (\"%s\" == \"%s\") failed\n", \
-             __FILE__, __LINE__, #first, #second,                      \
-             first, second);                                           \
+             __FILE__, __LINE__, #first, #second, first, second);      \
       return false;                                                    \
     }                                                                  \
   } while (0)
@@ -68,14 +65,13 @@ extern const char *KGRN;
  * @param first The first number.
  * @param second The second number.
  */
-#define check_eq(first, second)                                  \
-  do {                                                           \
-    if (!((first) == (second))) {                                \
-      printf(":: %s:%d: Check '%s == %s' (%ld == %ld) failed\n", \
-             __FILE__, __LINE__, #first, #second,                \
-             (long)(first), (long)(second));                     \
-      return false;                                              \
-    }                                                            \
+#define check_eq(first, second)                                            \
+  do {                                                                     \
+    if (!((first) == (second))) {                                          \
+      printf(":: %s:%d: Check '%s == %s' (%ld == %ld) failed\n", __FILE__, \
+             __LINE__, #first, #second, (long)(first), (long)(second));    \
+      return false;                                                        \
+    }                                                                      \
   } while (0)
 
 /**
@@ -87,14 +83,13 @@ extern const char *KGRN;
  * @param first The first number.
  * @param second The second number.
  */
-#define check_neq(first, second)                                 \
-  do {                                                           \
-    if (!((first) != (second))) {                                \
-      printf(":: %s:%d: Check '%s != %s' (%ld != %ld) failed\n", \
-             __FILE__, __LINE__, #first, #second,                \
-             (long)(first), (long)(second));                     \
-      return false;                                              \
-    }                                                            \
+#define check_neq(first, second)                                           \
+  do {                                                                     \
+    if (!((first) != (second))) {                                          \
+      printf(":: %s:%d: Check '%s != %s' (%ld != %ld) failed\n", __FILE__, \
+             __LINE__, #first, #second, (long)(first), (long)(second));    \
+      return false;                                                        \
+    }                                                                      \
   } while (0)
 
 /**
@@ -105,20 +100,18 @@ extern const char *KGRN;
  *
  * @param condition The condition to check.
  */
-#define check(condition)                      \
-  do {                                        \
-    if (!(condition)) {                       \
-      printf(":: %s:%d: Check '%s' failed\n", \
-             __FILE__, __LINE__, #condition); \
-      return false;                           \
-    }                                         \
+#define check(condition)                                                       \
+  do {                                                                         \
+    if (!(condition)) {                                                        \
+      printf(":: %s:%d: Check '%s' failed\n", __FILE__, __LINE__, #condition); \
+      return false;                                                            \
+    }                                                                          \
   } while (0)
 
 /*
  * The testing library BEGIN_TESTING macro. Sets up the _main_test_function.
  */
-#define BEGIN_TESTING \
-  void _main_test_function(bool *_result)
+#define BEGIN_TESTING void _main_test_function(bool *_result)
 
 /**
  * The testing library run_suite macro. This should only be called inside of the
@@ -159,8 +152,8 @@ extern const char *KGRN;
  */
 void _main_test_function(bool *);
 bool _run_test(const char *name, bool (*fn)(void), int *ntests, int *npassed);
-bool _run_suite(const char *name, void (*fn)(bool *result, int *_num_tests,
-                                             int *_num_passed));
+bool _run_suite(const char *name,
+                void (*fn)(bool *result, int *_num_tests, int *_num_passed));
 
 int begin_testing(int, const char *argv[]);
 

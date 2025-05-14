@@ -1,11 +1,11 @@
-#include "chloros.h"
-#include "utils.h"
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#include "utils.h"
 
 int main(int argc, char *argv[]) {
   UNUSED(argc);
@@ -21,7 +21,8 @@ int main(int argc, char *argv[]) {
 
   int client = socket(AF_INET, SOCK_STREAM, 0);
 
-  int failure = connect(client, (struct sockaddr *)&server_ip, sizeof(server_ip));
+  int failure =
+      connect(client, (struct sockaddr *)&server_ip, sizeof(server_ip));
 
   if (failure) {
     printf("Couldn't connect to server, exiting\n");
@@ -35,7 +36,8 @@ int main(int argc, char *argv[]) {
   while (read_bytes != 0) {
     in[read_bytes - 1] = '\0';
     printf("got this{%s}\n", in);
-    write(client, in, read_bytes);
+    int bytes_written = write(client, in, read_bytes);
+    (void)bytes_written;
     memset(in, 0, 2048);
     read_bytes = read(STDIN_FILENO, in, 1024);
   }

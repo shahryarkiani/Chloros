@@ -1,3 +1,10 @@
+#include "thread.h"
+
+#undef malloc
+#undef calloc
+#undef free
+
+#include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -7,12 +14,6 @@
 
 #include "chloros.h"
 #include "main.h"
-#include "thread.h"
-#include "utils.h"
-
-#undef malloc
-#undef calloc
-#undef free
 
 /**
  * Returns a unique number.
@@ -30,8 +31,8 @@ int64_t atomic_next_id() {
 }
 
 /**
- * Adds the `thread` to the linked list headed by STATE.active_threads. Panics if the
- * pointer to the thread being added is NULL.
+ * Adds the `thread` to the linked list headed by STATE.active_threads. Panics
+ * if the pointer to the thread being added is NULL.
  *
  * @param thread the thread to add to the linked list; must be non-null
  */
@@ -47,8 +48,8 @@ void add_thread(grn_thread *thread) {
 }
 
 /**
- * Adds the `thread` to the linked list headed by STATE.waiting_threads. Panics if the
- * pointer to the thread being added is NULL.
+ * Adds the `thread` to the linked list headed by STATE.waiting_threads. Panics
+ * if the pointer to the thread being added is NULL.
  *
  * @param thread the thread to add to the linked list; must be non-null
  */
@@ -76,9 +77,9 @@ void add_joinable_thread(grn_thread *thread) {
 
 /**
  * Moves the `thread` to the linked list headed by STATE.waiting_threads.
- * The `thread` should be in the linked list headed by STATE.active_threads before
- * this function is called
- * Panics if the pointer to the `thread` being moved is NULL.
+ * The `thread` should be in the linked list headed by STATE.active_threads
+ * before this function is called Panics if the pointer to the `thread` being
+ * moved is NULL.
  *
  * @param thread: the thread being moved from active_threads to waiting_threads
  */
@@ -101,8 +102,8 @@ void move_thread_to_joinable(grn_thread *thread) {
 }
 
 /**
- * Removes the `thread` to the linked list headed by STATE.active_threads. Panics if
- * the pointer to the thread being removed is NULL.
+ * Removes the `thread` to the linked list headed by STATE.active_threads.
+ * Panics if the pointer to the thread being removed is NULL.
  *
  * @param thread the thread being removed from linked list; must be non-null
  */
@@ -122,8 +123,8 @@ void remove_thread(grn_thread *thread) {
 }
 
 /**
- * Removes the `thread` to the linked list headed by STATE.waiting_threads. Panics if
- * the pointer to the thread being removed is NULL.
+ * Removes the `thread` to the linked list headed by STATE.waiting_threads.
+ * Panics if the pointer to the thread being removed is NULL.
  *
  * @param thread the thread being removed from linked list; must be non-null
  */
@@ -144,9 +145,9 @@ void remove_waiting_thread(grn_thread *thread) {
 
 /**
  * Returns a pointer to the thread following `thread` in the linked list headed
- * by STATE.active_threads. If `thread` is last  in the linked list, this function
- * returns the head of the linked list such that a cycle is formed. Panics if
- * the pointer to the thread parameter is NULL.
+ * by STATE.active_threads. If `thread` is last  in the linked list, this
+ * function returns the head of the linked list such that a cycle is formed.
+ * Panics if the pointer to the thread parameter is NULL.
  *
  * @param thread to use as a basis for the next thread; must be non-null
  *
@@ -181,7 +182,6 @@ grn_thread *next_waiting_thread(grn_thread *thread) {
  * @return a pointer to the newly allocated grn_thread structure
  */
 grn_thread *grn_new_thread(bool alloc_stack) {
-
   grn_thread *new_thread = calloc(sizeof(grn_thread), 1);
 
   new_thread->id = atomic_next_id();
@@ -218,27 +218,26 @@ void grn_destroy_thread(grn_thread *thread) {
  * @param thread the thread to debug pretty-pring
  */
 void debug_thread_print(grn_thread *thread) {
-  if (thread == NULL)
-    return;
+  if (thread == NULL) return;
   const char *status;
   switch (thread->status) {
-  case WAITING:
-    status = "WAITING";
-    break;
-  case READY:
-    status = "READY";
-    break;
-  case RUNNING:
-    status = "RUNNING";
-    break;
-  case ZOMBIE:
-    status = "ZOMBIE";
-    break;
-  case JOINABLE:
-    status = "JOINABLE";
-    break;
-  default:
-    status = "UNKNOWN";
+    case WAITING:
+      status = "WAITING";
+      break;
+    case READY:
+      status = "READY";
+      break;
+    case RUNNING:
+      status = "RUNNING";
+      break;
+    case ZOMBIE:
+      status = "ZOMBIE";
+      break;
+    case JOINABLE:
+      status = "JOINABLE";
+      break;
+    default:
+      status = "UNKNOWN";
   }
 
   fprintf(stderr, ":: Thread ID:\t %" PRId64 "\n", thread->id);
