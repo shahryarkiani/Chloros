@@ -57,8 +57,8 @@ unblock_timer:
  */
 .globl start_thread
 start_thread:
-  callq   unblock_timer
   add	    $0x8, %rsp 
+  callq   unblock_timer
   mov	    (%rsp), %rdi
   mov     0x8(%rsp), %r11
   callq   *%r11
