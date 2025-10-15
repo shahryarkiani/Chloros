@@ -11,7 +11,7 @@ EXAMPLES_DIR = examples
 LDFLAGS =
 ARFLAGS = -r
 CCFLAGS = -Wall -Wextra -Werror -Wswitch-default -Wwrite-strings \
-	-O3 -Iinclude -Itest/include -fno-stack-protector $(CFLAGS)
+	-O3 -Iinclude -Itest/include  $(CFLAGS)
 
 CHLOROS_C_SRCS = main.c thread.c
 CHLOROS_S_SRCS = context_switch.S

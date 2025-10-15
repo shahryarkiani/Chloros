@@ -18,7 +18,7 @@ static void *double_arg(void *arg) {
 static bool simple_join_test() {
   grn_init(true);
   int64_t id = grn_spawn(double_arg, (void *)21);
-  int return_val = 0;
+  size_t return_val = 0;
   grn_join(id, (void **)&return_val);
   check_eq(return_val, 42);
 
@@ -33,8 +33,8 @@ static void *recurse(void *arg) {
   long input = (long)arg;
   if (input == 10) return (void *)10;
 
-  int64_t id = grn_spawn(recurse, (void *)input + 1);
-  int return_val = 0;
+  int64_t id = grn_spawn(recurse, (void *)(input + 1));
+  long return_val = 0;
   grn_join(id, (void **)&return_val);
 
   return (void *)(return_val + input);
@@ -43,7 +43,7 @@ static void *recurse(void *arg) {
 static bool nested_join_test() {
   grn_init(true);
   int64_t id = grn_spawn(recurse, (void *)1);
-  int return_val = 0;
+  size_t return_val = 0;
   grn_join(id, (void **)&return_val);
 
   check_eq(return_val, 55);
