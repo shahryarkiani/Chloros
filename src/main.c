@@ -151,6 +151,8 @@ void grn_gc() {
 
   if (STATE.joinable_threads == NULL)
     return;
+
+  // Skip the head, and delete all the ZOMBIE threads
   grn_thread *iter_thread = next_joinable_thread(STATE.joinable_threads);
 
   while (iter_thread != STATE.joinable_threads) {
@@ -163,6 +165,13 @@ void grn_gc() {
     } else {
       iter_thread = next_joinable_thread(iter_thread);
     }
+  }
+
+  // Handle deleting the head
+  if(STATE.joinable_threads->status == ZOMBIE) {
+    grn_thread* new_head = STATE.joinable_threads->next;
+    grn_destroy_thread(STATE.joinable_threads);
+    STATE.joinable_threads = new_head;
   }
 }
 
@@ -298,65 +307,66 @@ int grn_join(int64_t thread_id, void **return_value_ptr) {
 
   grn_preempt_disable();
 
-  grn_thread *joining = STATE.joinable_threads;
+  grn_thread *join_target = STATE.joinable_threads;
 
   // TODO: find faster way to find join target(hashmap?)
   // Check if the join target has already completed processing
-  while (joining != NULL && joining->id != thread_id) {
-    joining = joining->next;
+  while (join_target != NULL && join_target->id != thread_id) {
+    join_target = join_target->next;
   }
 
   // Check if the join targest is in the wait queue
-  if (joining == NULL && STATE.waiting_threads != NULL) {
-    joining = STATE.waiting_threads;
+  if (join_target == NULL && STATE.waiting_threads != NULL) {
+    join_target = STATE.waiting_threads;
 
-    if (joining->id != thread_id) {
-      joining = next_waiting_thread(joining);
-      while (joining != STATE.waiting_threads && joining->id != thread_id) {
-        joining = next_waiting_thread(joining);
+    if (join_target->id != thread_id) {
+      join_target = next_waiting_thread(join_target);
+      while (join_target != STATE.waiting_threads && join_target->id != thread_id) {
+        join_target = next_waiting_thread(join_target);
       }
       // If we couldn't find it, we do this so the next if statements know
-      if (joining == STATE.waiting_threads) {
-        joining = NULL;
+      if (join_target == STATE.waiting_threads) {
+        join_target = NULL;
       }
     }
   }
 
-  if (joining == NULL) {
-    joining = next_thread(STATE.current);
+  // Search in the active threads list
+  if (join_target == NULL) {
+    join_target = next_thread(STATE.current);
 
     // Might want to add a hashmap for fast lookup of threads by id
-    while (joining != STATE.current && joining->id != thread_id) {
-      joining = next_thread(joining);
+    while (join_target != STATE.current && join_target->id != thread_id) {
+      join_target = next_thread(join_target);
     }
 
-    if (joining == STATE.current) {
-      joining = NULL;
+    if (join_target == STATE.current) {
+      join_target = NULL;
     }
   }
 
-  if (joining == NULL || joining->status == ZOMBIE || joining->waiting != NULL) {
+  if (join_target == NULL || join_target->status == ZOMBIE || join_target->waiting != NULL) {
     return -1; // Can't join this thread
   }
 
-  joining->waiting = STATE.current;
+  join_target->waiting = STATE.current;
 
-  if (joining->status != JOINABLE) {
-    debug("Thread %" PRId64 " is joining Thread %" PRId64 ". \n", STATE.current->id, joining->id);
+  if (join_target->status != JOINABLE) {
+    debug("Thread %" PRId64 " is joining Thread %" PRId64 ". \n", STATE.current->id, join_target->id);
 
     // Mark the current thread as WAITING, the next time it runs, joining->status will be JOINABLE
     STATE.current->status = WAITING;
     grn_yield();
   } else {
-    debug("Thread %" PRId64 " is already JOINABLE, by Thread %" PRId64 "\n", joining->id, STATE.current->id);
+    debug("Thread %" PRId64 " is already JOINABLE, by Thread %" PRId64 "\n", join_target->id, STATE.current->id);
   }
 
   debug("Thread %" PRId64 " has woken up\n", STATE.current->id);
 
-  joining->status = ZOMBIE;
+  join_target->status = ZOMBIE;
 
   if (return_value_ptr != NULL) {
-    *return_value_ptr = joining->return_value;
+    *return_value_ptr = join_target->return_value;
   }
 
   grn_preempt_enable();
@@ -375,6 +385,7 @@ void grn_exit(void *ret) {
   grn_preempt_disable();
   debug("Thread %" PRId64 " is exiting.\n", STATE.current->id);
   if (STATE.current->id == 0) {
+    grn_gc();
     exit(0);
   }
 
