@@ -481,6 +481,7 @@ ssize_t grn_read(int fd, void *buf, size_t count) {
   }
 
   STATE.current->status = WAITING;
+  grn_preempt_enable();
   grn_yield();
 
   grn_preempt_disable();
@@ -509,7 +510,7 @@ ssize_t grn_write(int fd, const void *buf, size_t count) {
 
   STATE.current->status = WAITING;
   grn_yield();
-
+  grn_preempt_enable();
   grn_preempt_disable();
 
   ssize_t bytes_written = write(fd, buf, count);
@@ -537,12 +538,14 @@ int grn_accept(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict a
 
   STATE.current->status = WAITING;
   grn_yield();
-
+  grn_preempt_enable();
   grn_preempt_disable();
 
   int accept_return = accept(sockfd, addr, addrlen);
 
   epoll_ctl(STATE.epfd, EPOLL_CTL_DEL, sockfd, NULL);
+
+  grn_preempt_enable();
 
   return accept_return;
 }
