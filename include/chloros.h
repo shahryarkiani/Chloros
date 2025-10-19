@@ -45,8 +45,8 @@ typedef struct grn_thread_struct {
   struct grn_thread_struct *next;
   void *return_value;
   struct grn_thread_struct *waiting;
-  uint16_t preempt_count;
-  bool should_reschedule;
+  volatile uint16_t preempt_count;
+  volatile bool should_reschedule;
 } grn_thread;
 
 /*
