@@ -96,8 +96,6 @@ void grn_init(bool preempt) {
   assert_malloc(STATE.current);
   STATE.current->status = RUNNING;
 
-  STATE.waiting_threads = NULL;
-
   STATE.epfd = epoll_create1(0);
 
   if (STATE.epfd == -1) {
@@ -137,8 +135,10 @@ int grn_spawn(grn_fn fn, void *arg) {
 
   new_thread->status = READY;
 
-  grn_yield();
   grn_preempt_enable();
+
+  grn_yield();
+
   return new_thread->id;
 }
 
@@ -156,15 +156,11 @@ void grn_gc() {
   grn_thread *iter_thread = next_joinable_thread(STATE.joinable_threads);
 
   while (iter_thread != STATE.joinable_threads) {
-    if (iter_thread->status == ZOMBIE) {
-      grn_thread *next_iter_thread = next_joinable_thread(iter_thread);
+    grn_thread *next_iter_thread = next_joinable_thread(iter_thread);
+    
+    if (iter_thread->status == ZOMBIE) grn_destroy_thread(iter_thread);
 
-      grn_destroy_thread(iter_thread);
-
-      iter_thread = next_iter_thread;
-    } else {
-      iter_thread = next_joinable_thread(iter_thread);
-    }
+    iter_thread = next_iter_thread;
   }
 
   // Handle deleting the head
