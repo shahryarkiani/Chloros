@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <signal.h>
 
 #if defined(__amd64__) || defined(__amd64) || defined(__x64_64__) || \
     defined(__x64_64) || defined(_M_AMD64) || defined(_M_X64)
